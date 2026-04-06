@@ -64,7 +64,9 @@ export default function RegisterPage() {
         </div>
 
         <div className="space-y-4">
-          <label className="block text-sm font-medium text-slate-700">Nama Lengkap</label>
+          <label className="block text-sm font-medium text-slate-700">
+            Nama Lengkap
+          </label>
           <input
             type="text"
             name="name"
@@ -74,7 +76,9 @@ export default function RegisterPage() {
             className="w-full rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
           />
 
-          <label className="block text-sm font-medium text-slate-700">Email</label>
+          <label className="block text-sm font-medium text-slate-700">
+            Email
+          </label>
           <input
             type="email"
             name="email"
@@ -84,7 +88,9 @@ export default function RegisterPage() {
             className="w-full rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
           />
 
-          <label className="block text-sm font-medium text-slate-700">Nomor Telepon</label>
+          <label className="block text-sm font-medium text-slate-700">
+            Nomor Telepon
+          </label>
           <input
             type="tel"
             name="phone"
@@ -94,7 +100,9 @@ export default function RegisterPage() {
             className="w-full rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
           />
 
-          <label className="block text-sm font-medium text-slate-700">Password</label>
+          <label className="block text-sm font-medium text-slate-700">
+            Password
+          </label>
           <div className="relative">
             <input
               type={showPassword ? "text" : "password"}
@@ -113,7 +121,9 @@ export default function RegisterPage() {
             </button>
           </div>
 
-          <label className="block text-sm font-medium text-slate-700">Konfirmasi Password</label>
+          <label className="block text-sm font-medium text-slate-700">
+            Konfirmasi Password
+          </label>
           <div className="relative">
             <input
               type={showConfirmPassword ? "text" : "password"}
@@ -132,40 +142,6 @@ export default function RegisterPage() {
             </button>
           </div>
 
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-slate-700">Tipe Akun</p>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setForm({ ...form, role: "buyer" })}
-                className={`rounded-2xl border px-4 py-3 text-sm font-semibold transition ${form.role === "buyer" ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"}`}
-              >
-                Buyer
-              </button>
-              <button
-                type="button"
-                onClick={() => setForm({ ...form, role: "seller" })}
-                className={`rounded-2xl border px-4 py-3 text-sm font-semibold transition ${form.role === "seller" ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"}`}
-              >
-                Seller
-              </button>
-            </div>
-          </div>
-
-          {form.role === "seller" && (
-            <label className="block text-sm font-medium text-slate-700">Nama Toko</label>
-          )}
-          {form.role === "seller" && (
-            <input
-              type="text"
-              name="shop_name"
-              value={form.shop_name}
-              onChange={handleChange}
-              placeholder="Nama Toko"
-              className="w-full rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-            />
-          )}
-
           <label className="flex items-start gap-3 text-sm text-slate-700">
             <input
               type="checkbox"
@@ -174,7 +150,14 @@ export default function RegisterPage() {
               className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
             />
             <span>
-              Saya setuju dengan <span className="font-semibold text-blue-600">Syarat & Ketentuan</span> dan <span className="font-semibold text-blue-600">Kebijakan Privasi</span>
+              Saya setuju dengan{" "}
+              <span className="font-semibold text-blue-600">
+                Syarat & Ketentuan
+              </span>{" "}
+              dan{" "}
+              <span className="font-semibold text-blue-600">
+                Kebijakan Privasi
+              </span>
             </span>
           </label>
 
@@ -198,11 +181,28 @@ export default function RegisterPage() {
             className="w-full flex items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
           >
             <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white">
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M21.35 11.1H12v2.8h5.2c-.25 1.45-1.3 2.8-2.8 3.45v2.85h4.55c2.65-2.45 4.15-6.05 4.15-10.1 0-.7-.05-1.4-.15-2.05z" fill="#4285F4" />
-                <path d="M12 22c2.7 0 4.95-.9 6.6-2.45l-4.55-2.85c-.8.55-1.85.85-3.05.85-2.35 0-4.35-1.6-5.05-3.75H2.25v2.35C3.9 19.9 7.7 22 12 22z" fill="#34A853" />
-                <path d="M6.95 13.8c-.2-.6-.35-1.25-.35-1.8s.15-1.2.35-1.8V7.85H2.25A9.97 9.97 0 0 0 1 12c0 1.6.35 3.15.95 4.55z" fill="#FBBC05" />
-                <path d="M12 5.4c1.45 0 2.75.5 3.8 1.45l2.85-2.85C16.95 2.35 14.7 1.4 12 1.4 7.7 1.4 3.9 3.5 2.25 7.85l4.7 3.5C7.65 7 9.65 5.4 12 5.4z" fill="#EA4335" />
+              <svg
+                viewBox="0 0 24 24"
+                className="h-4 w-4"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M21.35 11.1H12v2.8h5.2c-.25 1.45-1.3 2.8-2.8 3.45v2.85h4.55c2.65-2.45 4.15-6.05 4.15-10.1 0-.7-.05-1.4-.15-2.05z"
+                  fill="#4285F4"
+                />
+                <path
+                  d="M12 22c2.7 0 4.95-.9 6.6-2.45l-4.55-2.85c-.8.55-1.85.85-3.05.85-2.35 0-4.35-1.6-5.05-3.75H2.25v2.35C3.9 19.9 7.7 22 12 22z"
+                  fill="#34A853"
+                />
+                <path
+                  d="M6.95 13.8c-.2-.6-.35-1.25-.35-1.8s.15-1.2.35-1.8V7.85H2.25A9.97 9.97 0 0 0 1 12c0 1.6.35 3.15.95 4.55z"
+                  fill="#FBBC05"
+                />
+                <path
+                  d="M12 5.4c1.45 0 2.75.5 3.8 1.45l2.85-2.85C16.95 2.35 14.7 1.4 12 1.4 7.7 1.4 3.9 3.5 2.25 7.85l4.7 3.5C7.65 7 9.65 5.4 12 5.4z"
+                  fill="#EA4335"
+                />
               </svg>
             </span>
             Daftar dengan Google
@@ -222,8 +222,11 @@ export default function RegisterPage() {
         </div>
 
         <p className="mt-6 text-center text-sm text-slate-500">
-          Sudah punya akun?{' '}
-          <Link href="/login" className="font-semibold text-blue-600 hover:text-blue-700">
+          Sudah punya akun?{" "}
+          <Link
+            href="/login"
+            className="font-semibold text-blue-600 hover:text-blue-700"
+          >
             Masuk di sini
           </Link>
         </p>
