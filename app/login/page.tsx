@@ -2,9 +2,15 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import api from "@/services/api";
+import { saveAuthData } from "@/services/authentication";
 
 export default function LoginPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams.get("redirect") || "/";
+  
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -12,6 +18,11 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async () => {
+    if (!email || !password) {
+      alert("Email dan password harus diisi!");
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await api.post("/login", {
@@ -19,15 +30,34 @@ export default function LoginPage() {
         password,
       });
 
-      const token = res.data.data.token;
-      document.cookie = `token=${token}; path=/; samesite=lax`;
-      localStorage.setItem("token", token);
-      window.location.href = "/";
+      if (res.data.success) {
+        const { token, user } = res.data.data;
+        
+        // Save auth data using centralized function
+        saveAuthData(token, user);
+        
+        // If remember me is checked, extend cookie duration
+        if (rememberMe) {
+          document.cookie = `token=${token}; path=/; samesite=lax; max-age=2592000`;
+          document.cookie = `auth_token=${token}; path=/; samesite=lax; max-age=2592000`;
+        }
+
+        // Redirect to the requested page or home
+        router.push(redirectUrl);
+      } else {
+        alert(res.data.message || "Login gagal");
+      }
     } catch (err: any) {
-      console.error("ERROR:", err.response?.data ?? err);
-      alert("Login gagal. Silakan cek kembali email dan password Anda.");
+      console.error("ERROR:", err.response?.data ?? err.message);
+      alert(err.response?.data?.message || "Login gagal. Silakan cek kembali email dan password Anda.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleLogin();
     }
   };
 
@@ -46,6 +76,7 @@ export default function LoginPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              onKeyPress={handleKeyPress}
               placeholder="nama@email.com"
               className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
             />
@@ -58,6 +89,7 @@ export default function LoginPage() {
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                onKeyPress={handleKeyPress}
                 placeholder="Masukkan password"
                 className="w-full rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 pr-12 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
               />

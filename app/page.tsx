@@ -1,23 +1,137 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { HeartIcon } from "@heroicons/react/24/outline";
 import { logout } from "@/services/authentication";
-import { products, recommendations } from "@/lib/products";
+import { usePathname } from "next/navigation";
 
-const categories = [
-  "Elektronik",
-  "Fashion",
-  "Kendaraan",
-  "Furnitur",
-  "Gadget",
-  "Buku",
-  "Olahraga",
-  "Lainnya",
-];
+const BASE_URL = "http://127.0.0.1:8000/api/v1"; // ganti kalau pakai domain
+
+interface Category {
+  id: string | number;
+  name: string;
+  icon?: string;
+}
+
+interface ProductImage {
+  image_path: string;
+}
+
+interface SellerProfile {
+  city?: string;
+}
+
+interface Seller {
+  profile?: SellerProfile;
+}
+
+interface ApiProduct {
+  id: string | number;
+  title: string;
+  price: number | string;
+  images?: ProductImage[];
+  is_promoted?: boolean;
+  seller?: Seller;
+}
 
 export default function Dashboard() {
+  const pathname = usePathname();
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [products, setProducts] = useState<ApiProduct[]>([]);
+  const [recommendations, setRecommendations] = useState<ApiProduct[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // ================= FETCH DATA =================
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    const cached = localStorage.getItem('dashboard_data');
+    if (cached) {
+      const data = JSON.parse(cached);
+      setCategories(data.categories);
+      setProducts(data.products);
+      setRecommendations(data.recommendations);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const [catRes, prodRes] = await Promise.all([
+        fetch(`${BASE_URL}/categories`),
+        fetch(`${BASE_URL}/products`),
+      ]);
+
+      const catJson = await catRes.json();
+      const prodJson = await prodRes.json();
+
+      if (catJson.success) {
+        setCategories(catJson.data);
+      }
+
+      if (prodJson.success) {
+        const allProducts = (prodJson.data.data || prodJson.data) as ApiProduct[];
+
+        // Produk promosi (ads)
+        const promoted = allProducts.filter((p) => p.is_promoted);
+
+        // Rekomendasi = produk biasa
+        const normal = allProducts.filter((p) => !p.is_promoted);
+
+        setProducts(promoted);
+        setRecommendations(normal);
+
+        // Cache data
+        localStorage.setItem('dashboard_data', JSON.stringify({
+          categories: catJson.data,
+          products: promoted,
+          recommendations: normal,
+        }));
+      }
+    } catch (error) {
+      console.error("Error fetch:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // helper ambil gambar pertama
+  const getImage = (product: ApiProduct) => {
+    if (product.images && product.images.length > 0) {
+      return `http://127.0.0.1:8000/storage/${product.images[0].image_path}`;
+    }
+    return "/no-image.png";
+  };
+
+  const fetchByCategory = async (categoryId: string | number) => {
+    try {
+      setLoading(true);
+
+      const res = await fetch(
+        `${BASE_URL}/categories/${categoryId}/products`
+      );
+      const json = await res.json();
+
+      if (json.success) {
+        const data = (json.data.data || json.data) as ApiProduct[];
+
+        const promoted = data.filter((p) => p.is_promoted);
+        const normal = data.filter((p) => !p.is_promoted);
+
+        setProducts(promoted);
+        setRecommendations(normal);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
   return (
     <div className="flex min-h-screen w-full bg-white">
       {/* Sidebar */}
@@ -27,19 +141,19 @@ export default function Dashboard() {
 
           <nav className="mt-6 space-y-2">
             {[
-              { name: "Beranda" },
-              { name: "Notifikasi", badge: 3 },
-              { name: "Favorit" },
-              { name: "Pembelian" },
-              { name: "Profil" },
-            ].map((item, i) => (
-              <button
+              { name: "Beranda", href: "/" },
+              { name: "Notifikasi", href: "/notifications", badge: 3 },
+              { name: "Favorit", href: "/favorites" },
+              { name: "Pembelian", href: "/purchases" },
+              { name: "Pindah ke seller", href: "/seller" },
+            ].map((item) => (
+              <Link
                 key={item.name}
+                href={item.href}
                 className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition
-                  ${
-                    i === 0
-                      ? "bg-blue-100 text-blue-600"
-                      : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                  ${pathname === item.href
+                    ? "bg-blue-100 text-blue-600"
+                    : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                   }`}
               >
                 <span>{item.name}</span>
@@ -49,7 +163,7 @@ export default function Dashboard() {
                     {item.badge}
                   </span>
                 )}
-              </button>
+              </Link>
             ))}
           </nav>
         </div>
@@ -61,7 +175,9 @@ export default function Dashboard() {
               AS
             </div>
             <div>
-              <p className="text-sm font-medium text-primary">Ahmad Saputra</p>
+              <p className="text-sm font-medium text-primary">
+                Ahmad Saputra
+              </p>
               <p className="text-xs text-blue-600 cursor-pointer">
                 Lihat Profil
               </p>
@@ -89,14 +205,24 @@ export default function Dashboard() {
         <h2 className="font-semibold mb-3 text-primary">Kategori</h2>
         <div className="flex gap-4 mb-8 overflow-x-auto">
           {categories.map((cat) => (
-            <div key={cat} className="flex flex-col items-center min-w-[60px]">
-              <div className="w-14 h-14 bg-blue-100 rounded-full" />
+            <div
+              key={cat.id}
+              onClick={() => fetchByCategory(cat.id)}
+              className="flex flex-col items-center min-w-[70px] cursor-pointer"
+            >
+              <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center text-xl">
+                {cat.icon || "📦"}
+              </div>
+
               <span className="text-xs mt-2 text-center text-primary">
-                {cat}
+                {cat.name}
               </span>
             </div>
           ))}
         </div>
+
+        {/* Loading */}
+        {loading && <p>Loading...</p>}
 
         {/* Promo */}
         <h2 className="font-semibold mb-3 text-primary">Iklan Promosi</h2>
@@ -109,10 +235,10 @@ export default function Dashboard() {
             >
               <div className="relative">
                 <Image
-                  src={p.image}
+                  src={getImage(p)}
                   width={240}
                   height={160}
-                  alt={p.name}
+                  alt={p.title}
                   className="rounded-lg object-cover"
                 />
 
@@ -123,15 +249,21 @@ export default function Dashboard() {
                 <HeartIcon className="w-5 h-5 absolute top-2 right-2 text-white" />
               </div>
 
-              <p className="text-sm mt-2 text-primary">{p.name}</p>
-              <p className="text-blue-600 font-semibold">{p.price}</p>
-              <p className="text-xs text-gray-500">{p.location}</p>
+              <p className="text-sm mt-2 text-primary">{p.title}</p>
+              <p className="text-blue-600 font-semibold">
+                Rp {Number(p.price).toLocaleString("id-ID")}
+              </p>
+              <p className="text-xs text-gray-500">
+                {p.seller?.profile?.city || "Unknown"}
+              </p>
             </Link>
           ))}
         </div>
 
         {/* Recommendations */}
-        <h2 className="font-semibold mb-3 text-primary">Rekomendasi Untukmu</h2>
+        <h2 className="font-semibold mb-3 text-primary">
+          Rekomendasi Untukmu
+        </h2>
         <div className="flex gap-4 overflow-x-auto">
           {recommendations.map((r) => (
             <Link
@@ -141,19 +273,23 @@ export default function Dashboard() {
             >
               <div className="relative">
                 <Image
-                  src={r.image}
+                  src={getImage(r)}
                   width={240}
                   height={160}
-                  alt={r.name}
+                  alt={r.title}
                   className="rounded-lg object-cover"
                 />
 
                 <HeartIcon className="w-5 h-5 absolute top-2 right-2 text-red-500" />
               </div>
 
-              <p className="text-sm mt-2 text-primary">{r.name}</p>
-              <p className="text-blue-600 font-semibold">{r.price}</p>
-              <p className="text-xs text-gray-500">{r.location}</p>
+              <p className="text-sm mt-2 text-primary">{r.title}</p>
+              <p className="text-blue-600 font-semibold">
+                Rp {Number(r.price).toLocaleString("id-ID")}
+              </p>
+              <p className="text-xs text-gray-500">
+                {r.seller?.profile?.city || "Unknown"}
+              </p>
             </Link>
           ))}
         </div>
