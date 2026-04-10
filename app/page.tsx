@@ -172,11 +172,11 @@ export default function Dashboard() {
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center">
-              AS
+              BS
             </div>
             <div>
               <p className="text-sm font-medium text-primary">
-                Ahmad Saputra
+                Budi Santoso
               </p>
               <p className="text-xs text-blue-600 cursor-pointer">
                 Lihat Profil
