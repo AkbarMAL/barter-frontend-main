@@ -1,34 +1,243 @@
+"use client";
+
+import { useEffect, useState, use } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { products, recommendations, Product } from "@/lib/products";
+import { useRouter } from "next/navigation";
+import { HeartIcon as HeartOutline, ShareIcon } from "@heroicons/react/24/outline";
+import { HeartIcon as HeartSolid, StarIcon, MapPinIcon } from "@heroicons/react/24/solid";
 
-const allProducts = [...products, ...recommendations];
+const BASE_URL = "http://127.0.0.1:8000/api/v1";
 
-function getProduct(id: string): Product | undefined {
-  return allProducts.find((product) => product.id === id);
+// ================= DUMMY DATA =================
+const dummyPromoted = [
+  { id: "p1", title: "iPhone 11 Pro Gold - Mulus Fullset", price: 6500000, condition: "Bekas - Sangat Baik", image: "https://images.unsplash.com/photo-1591337676887-a217a6970a8a?w=1200&q=80", location: "Jakarta Selatan", rating: 4.8, description: "iPhone 11 Pro eks garansi iBox, body mulus 99%, battery health awet 92%. Semua fungsi normal face ID ON, true tone ON." },
+  { id: "p2", title: "Laptop ASUS VivoBook - Intel Core i5", price: 7200000, condition: "Bekas - Pemakaian", image: "https://images.unsplash.com/photo-1593642702749-b7d2a804fbcf?w=1200&q=80", location: "Bandung", rating: 4.5, description: "Laptop asus siap pakai kerja dan nugas. Spesifikasi Core i5 gen 10 RAM 8GB SSD 512GB mulus." },
+  { id: "p3", title: "Kulkas AQUA 1 Pintu Motif Bunga", price: 1100000, condition: "Bekas - Pemakaian", image: "https://images.unsplash.com/photo-1584568694244-14fbdf83bd30?w=1200&q=80", location: "Surabaya", rating: 4.9, description: "Masih sangat dingin, freezer aman tanpa lecet parah. Body samping sedikit baret wajar." },
+  { id: "p4", title: "Sony WH-1000XM4 Headphones", price: 3500000, condition: "Bekas - Seperti Baru", image: "https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb?w=1200&q=80", location: "Jakarta Barat", rating: 5.0, description: "Headphone noise-cancelling premium dalam kondisi sempurna, sangat terawat tanpa cacat dan berfungsi normal. Kualitas suara jernih dengan fitur peredam bising yang optimal, nyaman digunakan untuk berbagai aktivitas." },
+];
+
+const dummyRecommendations = [
+  { id: "r1", title: "MacBook Pro 14\" M1 Pro 2021", price: 25000000, condition: "Bekas - Seperti Baru", image: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=1200&q=80", location: "Bandung", rating: 4.9, description: "CC sangat rendah. Jarang dipakai nge-render berat." },
+  { id: "r2", title: "Meja Kayu Minimalis Aesthetic", price: 1500000, condition: "Bekas - Bagus", image: "https://images.unsplash.com/photo-1592078615290-033ee584e267?w=1200&q=80", location: "Surabaya", rating: 4.7, description: "Kuat kokoh dan estetik. Bahan kayu jati belanda." },
+  { id: "r3", title: "Nike Air Jordan 1 Mid Red", price: 1800000, condition: "Baru", image: "https://images.unsplash.com/photo-1549298916-b41d501d3772?w=1200&q=80", location: "Jakarta Pusat", rating: 4.8, description: "100% Original full tag. Belum pernah dipakai di luar." },
+  { id: "r4", title: "Kamera Canon EOS M50 Mark II", price: 7500000, condition: "Bekas - Sangat Baik", image: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=1200&q=80", location: "Yogyakarta", rating: 4.6, description: "Fungsi jepret sangat normal lancar jaya no minus no jamur." },
+];
+
+const allMockupProducts = [...dummyPromoted, ...dummyRecommendations];
+
+// ================= TYPES =================
+interface ApiProduct {
+  id: string | number;
+  title: string;
+  price: number;
+  condition?: string;
+  description?: string;
+  images?: { image_path: string }[];
+  location_city?: string;
+  seller?: {
+    id: number;
+    name: string;
+    profile?: { city?: string }
+  };
 }
 
-export default function ProductDetailPage({
-  params,
-}: {
-  params: { id: string };
-}) {
-  const product = getProduct(params.id);
+interface SellerRatings {
+  average_rating: number;
+  total_reviews: number;
+  total_products: number; // custom info for mock if needed
+  start_counts?: { [key: number]: number };
+  reviews: any[];
+}
+
+export default function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const router = useRouter();
+  const { id } = use(params);
+
+  const [product, setProduct] = useState<any>(null);
+  const [sellerStats, setSellerStats] = useState<SellerRatings | null>(null);
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [isMockProduct, setIsMockProduct] = useState(false);
+
+  // Cek jika ID berawalan 'p' atau 'r'
+  useEffect(() => {
+    const isMock = typeof id === 'string' && (id.startsWith('p') || id.startsWith('r'));
+    setIsMockProduct(isMock);
+
+    if (isMock) {
+      loadMockProduct(id);
+    } else {
+      loadRealProduct(id);
+    }
+  }, [id]);
+
+  const loadMockProduct = (id: string) => {
+    const found = allMockupProducts.find(p => p.id === id);
+    if (!found) {
+      setIsLoading(false);
+      return;
+    }
+
+    setProduct({
+      id: found.id,
+      title: found.title,
+      price: found.price,
+      condition: found.condition,
+      description: found.description,
+      image: found.image,
+      location: found.location,
+      sellerName: "Budi Santoso",
+      sellerRating: 4.7,
+      followers: 189,
+      totalProducts: 1
+    });
+
+    setSellerStats({
+      average_rating: 5.0,
+      total_reviews: 3,
+      total_products: 1,
+      reviews: [
+        { id: 1, reviewer_name: "Rina Wati", rating: 5, comment: "Penjual ramah dan responsif. Barang sesuai deskripsi!", helpful: 12 },
+        { id: 2, reviewer_name: "Joko Widodo", rating: 4, comment: "Pengiriman cepat, packaging rapi. Recommended!", helpful: 12 },
+        { id: 3, reviewer_name: "Linda Hartono", rating: 5, comment: "Barang original dan kondisi sangat bagus. Terima kasih!", helpful: 12 }
+      ]
+    });
+
+    // Cek Local Storage untuk status favoritenya
+    const favStr = localStorage.getItem('mock_favorites');
+    if (favStr) {
+      const favSet = new Set(JSON.parse(favStr));
+      setIsFavorite(favSet.has(id));
+    }
+
+    setIsLoading(false);
+  };
+
+  const loadRealProduct = async (id: string) => {
+    try {
+      // 1. Fetch Product
+      const prodRes = await fetch(`${BASE_URL}/products/${id}`);
+      const prodJson = await prodRes.json();
+
+      if (!prodJson.success) {
+        setIsLoading(false);
+        return;
+      }
+
+      const pData = prodJson.data;
+
+      let imgPath = "/no-image.png";
+      if (pData.images && pData.images.length > 0) {
+        imgPath = `http://127.0.0.1:8000/storage/${pData.images[0].image_path}`;
+      }
+
+      setProduct({
+        id: pData.id,
+        title: pData.title,
+        price: pData.price,
+        condition: pData.condition || "Bekas",
+        description: pData.description,
+        image: imgPath,
+        location: pData.location_city || pData.seller?.profile?.city || "Lokasi tidak diketahui",
+        sellerId: pData.seller?.id,
+        sellerName: pData.seller?.name || "Penjual Anonim",
+      });
+
+      // 2. Fetch Seller Ratings (jika ID real backend ada provider ratingnya)
+      if (pData.seller?.id) {
+        try {
+          const ratRes = await fetch(`${BASE_URL}/ratings/seller/${pData.seller.id}`);
+          const ratJson = await ratRes.json();
+          if (ratJson.success) {
+            setSellerStats(ratJson.data);
+          }
+        } catch (e) {
+          console.log("Could not fetch seller rating", e);
+        }
+      }
+
+      // 3. Cek Favorites dari API (if logged in)
+      const token = localStorage.getItem("token");
+      if (token) {
+        const favRes = await fetch(`${BASE_URL}/my/favorites`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const favJson = await favRes.json();
+        if (favJson.success) {
+          const arr = favJson.data.data || favJson.data;
+          const isFav = arr.some((f: any) => f.product_id == id);
+          setIsFavorite(isFav);
+        }
+      }
+
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const toggleFavorite = async () => {
+    // ── Logika Mockup ──
+    if (isMockProduct) {
+      const nextFav = !isFavorite;
+      setIsFavorite(nextFav);
+      const favStr = localStorage.getItem('mock_favorites');
+      let favSet = new Set<string>();
+      if (favStr) favSet = new Set(JSON.parse(favStr));
+
+      if (nextFav) favSet.add(id);
+      else favSet.delete(id);
+
+      localStorage.setItem('mock_favorites', JSON.stringify([...favSet]));
+      return;
+    }
+
+    // ── Logika Asli (API Back-End) ──
+    const token = localStorage.getItem("token");
+    if (!token) {
+      alert("Silakan login terlebih dahulu untuk menyimpan favorit.");
+      return;
+    }
+
+    // Optimistic UI
+    setIsFavorite(!isFavorite);
+    try {
+      const res = await fetch(`${BASE_URL}/products/${id}/favorite`, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`
+        }
+      });
+      const json = await res.json();
+      if (json.success) {
+        setIsFavorite(json.is_favorite);
+      } else {
+        setIsFavorite(isFavorite); // rollback
+      }
+    } catch (err) {
+      setIsFavorite(isFavorite); // rollback
+      alert("Terjadi kesalahan.");
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   if (!product) {
     return (
       <div className="min-h-screen bg-slate-50 px-6 py-10">
         <div className="mx-auto max-w-3xl rounded-3xl bg-white p-10 text-center shadow-sm">
-          <p className="text-xl font-semibold text-slate-900">
-            Produk tidak ditemukan
-          </p>
-          <p className="mt-3 text-slate-600">
-            Silakan kembali ke beranda untuk memilih produk lain.
-          </p>
-          <Link
-            href="/"
-            className="mt-6 inline-flex rounded-2xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700"
-          >
+          <p className="text-xl font-semibold text-slate-900">Produk tidak ditemukan</p>
+          <Link href="/" className="mt-6 inline-flex rounded-2xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700">
             Kembali ke Beranda
           </Link>
         </div>
@@ -37,132 +246,231 @@ export default function ProductDetailPage({
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-6xl px-6 py-6">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 text-sm font-medium text-slate-700 hover:text-slate-900"
-        >
-          <span className="text-xl">←</span>
-          Kembali
-        </Link>
+    <div className="min-h-screen bg-white text-slate-800 pb-20 font-sans">
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="rounded-[32px] bg-white p-6 shadow-sm">
-            <Image
-              src={product.image}
-              width={900}
-              height={540}
-              alt={product.name}
-              className="h-[420px] w-full rounded-3xl object-cover"
-            />
-            <div className="mt-6">
-              <p className="text-sm font-semibold uppercase tracking-[.2em] text-blue-600">
-                {product.condition}
-              </p>
-              <h1 className="mt-3 text-3xl font-semibold text-slate-900">
-                {product.name}
-              </h1>
-              <p className="mt-3 text-2xl font-semibold text-blue-600">
-                {product.price}
-              </p>
-              <p className="mt-2 text-sm text-slate-500">{product.location}</p>
-              <div className="mt-6 space-y-5 text-sm leading-7 text-slate-600">
-                <p>{product.description}</p>
-                <p>
-                  Barang tersedia dan siap dikirim. Hubungi penjual untuk
-                  menanyakan detail final, nego harga, atau opsi barter.
-                </p>
-              </div>
+      {/* ── TOP NAV BAR (Persis Mockup) ── */}
+      <div className="border-b border-gray-100 bg-white sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 md:px-8 py-4 flex items-center justify-between">
+          <button
+            onClick={() => router.back()}
+            className="flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-blue-600 transition"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            Kembali
+          </button>
+
+          <div className="flex items-center gap-4 text-gray-600">
+            <button onClick={toggleFavorite} className="hover:scale-110 transition-transform hover:text-red-500">
+              {isFavorite ? <HeartSolid className="w-6 h-6 text-red-500" /> : <HeartOutline className="w-6 h-6" />}
+            </button>
+            <button className="hover:scale-110 hover:text-blue-500 transition-transform">
+              <ShareIcon className="w-6 h-6" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 md:px-8 pt-8">
+
+        {/* ── BAGIAN UTAMA PRODUK: FOTO & KETERANGAN ── */}
+        <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
+
+          {/* FOTO PRODUK */}
+          <div className="w-full lg:w-3/5">
+            <div className="relative aspect-square w-full rounded-3xl overflow-hidden bg-gray-50 border border-gray-100 shadow-sm">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={product.image}
+                alt={product.title}
+                className="w-full h-full object-cover"
+              />
             </div>
           </div>
 
-          <div className="space-y-4">
-            <div className="rounded-[32px] bg-white p-6 shadow-sm">
-              <div className="space-y-5">
-                <div>
-                  <p className="text-sm uppercase tracking-[.18em] text-slate-500">
-                    Detail Penawaran
-                  </p>
-                  <p className="mt-3 text-3xl font-semibold text-slate-900">
-                    {product.price}
-                  </p>
-                </div>
-                <div className="grid gap-3">
-                  <button className="w-full rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-orange-600">
-                    Beli Sekarang
-                  </button>
-                  <button className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
-                    Hubungi Penjual
-                  </button>
-                  <button className="w-full rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700">
-                    Barter / Tukar Tambah
-                  </button>
-                </div>
-              </div>
+          {/* KOLOM KANAN: KETERANGAN PRODUK */}
+          <div className="w-full lg:w-2/5 flex flex-col">
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 leading-tight">
+              {product.title}
+            </h1>
+            <p className="mt-4 text-[32px] md:text-4xl font-extrabold text-blue-600 tracking-tight">
+              Rp {Number(product.price).toLocaleString("id-ID")}
+            </p>
+
+            <div className="flex items-center gap-3 mt-4">
+              <span className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-semibold tracking-wide uppercase border border-blue-100">
+                {product.condition}
+              </span>
+              <span className="flex items-center gap-1 text-sm text-gray-500">
+                <MapPinIcon className="w-4 h-4 text-gray-400" />
+                {product.location}
+              </span>
             </div>
 
-            <div className="rounded-[32px] bg-white p-6 shadow-sm">
-              <div className="flex items-center gap-4">
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-500 text-xl font-semibold text-white">
-                  {product.seller
-                    .split(" ")
-                    .map((word) => word[0])
-                    .join("")}
-                </div>
-                <div>
-                  <p className="font-semibold text-slate-900">
-                    {product.seller}
-                  </p>
-                  <p className="text-sm text-slate-500">Online 2 jam lalu</p>
-                </div>
+            <div className="mt-8 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <button className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3.5 px-4 rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2 text-sm">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                  Beli Sekarang
+                </button>
+                <button className="w-full bg-white border-2 border-blue-600 text-blue-600 hover:bg-blue-50 font-bold py-3 px-4 rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2 text-sm">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                  Hubungi Penjual
+                </button>
               </div>
-              <div className="mt-6 space-y-3 text-sm text-slate-600">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                  <span>Rating</span>
-                  <span className="font-semibold text-slate-900">
-                    {product.rating}.0
-                  </span>
-                </div>
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                  <span>Pengikut</span>
-                  <span className="font-semibold text-slate-900">
-                    {product.followers}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Produk</span>
-                  <span className="font-semibold text-slate-900">
-                    {product.products}
-                  </span>
-                </div>
-              </div>
-              <button className="mt-6 w-full rounded-2xl border border-blue-600 bg-white px-4 py-3 text-sm font-semibold text-blue-600 transition hover:bg-blue-50">
-                Kunjungi Toko
+              <button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2 text-sm">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                Barter / Tukar Tambah
               </button>
             </div>
 
-            <div className="rounded-[32px] bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-slate-900">
-                Ulasan Seller
-              </h2>
-              <div className="mt-5 space-y-4 text-sm text-slate-600">
-                <div className="space-y-2 rounded-3xl bg-slate-50 p-4">
-                  <p className="font-semibold text-slate-900">Rina Wati</p>
-                  <p>Penjual ramah dan responsif. Barang sesuai deskripsi!</p>
-                </div>
-                <div className="space-y-2 rounded-3xl bg-slate-50 p-4">
-                  <p className="font-semibold text-slate-900">Joko Widodo</p>
-                  <p>Pengiriman cepat, packaging rapi. Recommended!</p>
-                </div>
-                <div className="space-y-2 rounded-3xl bg-slate-50 p-4">
-                  <p className="font-semibold text-slate-900">Linda Hartono</p>
-                  <p>Barang original dan kondisi sangat bagus. Terima kasih!</p>
-                </div>
+            <div className="mt-10 border-t border-gray-100 pt-8">
+              <h3 className="font-bold text-gray-900 text-lg mb-4">Deskripsi</h3>
+              <div className="prose prose-sm text-gray-600 leading-relaxed max-w-none">
+                <p>{product.description}</p>
               </div>
             </div>
           </div>
         </div>
+
+        {/* ── CARD SELLER INFO ── */}
+        <div className="mt-12 rounded-3xl border border-gray-100 bg-white p-6 md:p-8 shadow-sm">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+
+            {/* Seller profile left */}
+            <div className="flex items-center gap-4">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xl font-bold text-white shadow-sm overflow-hidden border-2 border-transparent">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&q=80" alt="Avatar" className="w-full h-full object-cover" />
+              </div>
+              <div>
+                <p className="font-bold text-gray-900 text-lg">
+                  {product.sellerName}
+                </p>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                  <p className="text-xs font-medium text-gray-500">Online 2 jam lalu</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Seller stats right/center */}
+            <div className="flex bg-gray-50 rounded-2xl py-3 px-6 divide-x divide-gray-200 text-center gap-6 md:gap-0">
+              <div className="px-4 md:px-8">
+                <p className="text-xs text-gray-500 mb-1 font-medium">Rating</p>
+                <p className="font-bold text-gray-900 flex items-center justify-center gap-1">
+                  <StarIcon className="w-4 h-4 text-yellow-500" />
+                  {sellerStats?.average_rating || product.sellerRating || "0"}
+                </p>
+              </div>
+              <div className="px-4 md:px-8">
+                <p className="text-xs text-gray-500 mb-1 font-medium">Pengikut</p>
+                <p className="font-bold text-gray-900">
+                  {product.followers || "0"}
+                </p>
+              </div>
+              <div className="px-4 md:px-8">
+                <p className="text-xs text-gray-500 mb-1 font-medium">Produk</p>
+                <p className="font-bold text-gray-900">
+                  {sellerStats?.total_products || product.totalProducts || "0"}
+                </p>
+              </div>
+            </div>
+
+          </div>
+
+          <div className="mt-6 flex gap-4">
+            <button className="flex-1 flex items-center justify-center gap-2 rounded-xl border-2 border-blue-600 bg-white px-4 py-3 text-sm font-bold text-blue-600 transition hover:bg-blue-50">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+              Hubungi Penjual
+            </button>
+            <button className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-bold text-gray-700 transition hover:bg-gray-50 hover:text-gray-900">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+              Kunjungi Toko
+            </button>
+          </div>
+        </div>
+
+        {/* ── ULASAN SELLER ── */}
+        <div className="mt-12">
+          <h2 className="text-xl font-bold text-gray-900 mb-6">Ulasan Seller</h2>
+
+          <div className="rounded-3xl border border-gray-100 bg-white p-6 md:p-10 shadow-sm flex flex-col md:flex-row gap-10 md:items-center">
+
+            {/* Box Kiri: Nilai Rating Besar */}
+            <div className="flex flex-col items-center justify-center md:w-1/3">
+              <div className="flex items-baseline gap-1">
+                <span className="text-6xl font-extrabold text-gray-900">{sellerStats?.average_rating || "5.0"}</span>
+                <span className="text-xl font-bold text-gray-400">/ 5</span>
+              </div>
+              <div className="flex mt-3 mb-2">
+                {[...Array(5)].map((_, i) => (
+                  <StarIcon key={i} className="w-6 h-6 text-orange-500" />
+                ))}
+              </div>
+              <p className="text-sm font-medium text-gray-500">
+                {sellerStats?.total_reviews || "3"} Ulasan
+              </p>
+            </div>
+
+            {/* Progress Bars Tengah */}
+            <div className="flex-1 space-y-3">
+              {[5, 4, 3, 2, 1].map((ratingNum) => {
+                // Hardcode logic mockup diagram supaya presisi sama gambar Figma
+                let count = 0;
+                let percent = "0%";
+                if (ratingNum === 5) { count = 2; percent = "66%"; }
+                if (ratingNum === 4) { count = 1; percent = "33%"; }
+
+                return (
+                  <div key={ratingNum} className="flex items-center gap-3">
+                    <div className="flex items-center gap-1 w-10 text-xs font-bold text-gray-600">
+                      <StarIcon className="w-3.5 h-3.5 text-orange-500" /> {ratingNum}
+                    </div>
+                    <div className="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-orange-500 rounded-full"
+                        style={{ width: percent }}
+                      ></div>
+                    </div>
+                    <div className="w-6 text-right text-xs font-bold text-gray-400">
+                      {count}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="mt-8 space-y-6 max-w-4xl">
+            {sellerStats?.reviews?.map((review: any, i: number) => (
+              <div key={i} className="flex gap-4 border-b border-gray-100 pb-6 last:border-0 last:pb-0">
+                <div className="w-12 h-12 bg-gray-200 rounded-full overflow-hidden shrink-0 mt-1">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={`https://i.pravatar.cc/150?u=${review.id || i}`} alt="Avatar" className="w-full h-full object-cover" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-bold text-gray-900 text-sm">{review.reviewer_name}</p>
+                  <div className="flex my-1.5">
+                    {[...Array(5)].map((_, index) => (
+                      <StarIcon key={index} className={`w-4 h-4 ${index < review.rating ? 'text-orange-500' : 'text-gray-200'}`} />
+                    ))}
+                  </div>
+                  <p className="text-gray-700 text-sm mt-3 mb-4 leading-relaxed">
+                    {review.comment}
+                  </p>
+                  <button className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-blue-600 transition">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.514" /></svg>
+                    Membantu ({review.helpful || 12})
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+        </div>
+
       </div>
     </div>
   );

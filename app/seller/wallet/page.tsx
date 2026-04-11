@@ -68,6 +68,7 @@ const sellerMenus = [
     { name: "Dashboard", href: "/seller" },
     { name: "Produk", href: "/seller/products" },
     { name: "Transaksi", href: "/seller/transactions" },
+    { name: "Refunds", href: "/seller/refunds" },
     { name: "Wallet", href: "/seller/wallet" },
     { name: "Ads", href: "/seller/ads" },
     { name: "Notifikasi", href: "/seller/notifications" },
