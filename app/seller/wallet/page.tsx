@@ -84,6 +84,7 @@ export default function WalletPage() {
     const [incomes, setIncomes] = useState<Income[]>([]);
     const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
     const [loading, setLoading] = useState(true);
+    const [user, setUser] = useState<any>(null);
 
     // UI states
     const [activeTab, setActiveTab] = useState<ActiveTab>("pemasukan");
@@ -116,6 +117,12 @@ export default function WalletPage() {
 
     // ─── Load saved payment method from localStorage ──────────────────────────
     useEffect(() => {
+        // Load user
+        const userStr = localStorage.getItem("current_user");
+        if (userStr) {
+            try { setUser(JSON.parse(userStr)); } catch { /* ignore */ }
+        }
+        // Load saved payment method
         const saved = localStorage.getItem("wallet_payment_method");
         if (saved) {
             const method: PaymentMethod = JSON.parse(saved);

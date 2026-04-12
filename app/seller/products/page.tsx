@@ -44,6 +44,7 @@ export default function SellerProducts() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<ApiProduct | null>(null);
   const [submitLoading, setSubmitLoading] = useState(false);
+  const [user, setUser] = useState<any>(null);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -115,6 +116,12 @@ export default function SellerProducts() {
   };
 
   useEffect(() => {
+    // Load user from localStorage
+    const userStr = localStorage.getItem("current_user");
+    if (userStr) {
+      try { setUser(JSON.parse(userStr)); } catch { /* ignore */ }
+    }
+
     const token = localStorage.getItem('auth_token');
     if (!token) {
       alert('Anda harus login terlebih dahulu!');
@@ -329,6 +336,7 @@ export default function SellerProducts() {
     { name: "Dashboard", href: "/seller" },
     { name: "Produk", href: "/seller/products" },
     { name: "Transaksi", href: "/seller/transactions" },
+    { name: "Refunds", href: "/seller/refunds" },
     { name: "Wallet", href: "/seller/wallet" },
     { name: "Ads", href: "/seller/ads" },
     { name: "Notifikasi", href: "/seller/notifications" },
@@ -367,12 +375,8 @@ export default function SellerProducts() {
               S
             </div>
             <div>
-              <p className="text-sm font-medium text-primary">
-                Seller Name
-              </p>
-              <p className="text-xs text-blue-600 cursor-pointer">
-                Lihat Profil
-              </p>
+              <p className="text-sm font-medium text-gray-800">Seller Name</p>
+              <p className="text-xs text-blue-600 cursor-pointer">Lihat Profil</p>
             </div>
           </div>
           <button

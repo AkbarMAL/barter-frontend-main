@@ -24,7 +24,7 @@ interface ApiProduct {
 interface Transaction {
   id: string | number;
   status: string;
-  total: number;
+  final_amount: number;
   created_at: string;
   product?: ApiProduct;
 }
@@ -47,33 +47,49 @@ export default function SellerDashboard() {
   const [wallet, setWallet] = useState<Wallet>({ balance: 0 });
   const [ads, setAds] = useState<Ad[]>([]);
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
+
+  const sellerMenus = [
+    { name: "Dashboard", href: "/seller" },
+    { name: "Produk", href: "/seller/products" },
+    { name: "Transaksi", href: "/seller/transactions" },
+    { name: "Refunds", href: "/seller/refunds" },
+    { name: "Wallet", href: "/seller/wallet" },
+    { name: "Ads", href: "/seller/ads" },
+    { name: "Notifikasi", href: "/seller/notifications" },
+    { name: "Pindah ke halaman pembeli", href: "/" }
+  ];
+
+  function getAuthHeaders() {
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    return {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+  }
 
   // ================= FETCH DATA =================
   useEffect(() => {
+    // Load user from localStorage
+    const userStr = localStorage.getItem("current_user");
+    if (userStr) {
+      try { setUser(JSON.parse(userStr)); } catch { /* ignore */ }
+    }
+
     fetchSellerData();
   }, []);
 
   const fetchSellerData = async () => {
-    const cached = localStorage.getItem('seller_dashboard_data');
-    if (cached) {
-      const data = JSON.parse(cached);
-      setMyProducts(data.myProducts);
-      setTransactions(data.transactions);
-      setWallet(data.wallet);
-      setAds(data.ads);
-      setLoading(false);
-      return;
-    }
-
     try {
       setLoading(true);
 
-      // Fetch multiple data in parallel
+      // Fetch multiple data in parallel with auth headers
       const [prodRes, transRes, walletRes, adsRes] = await Promise.all([
-        fetch(`${BASE_URL}/my/products`),
-        fetch(`${BASE_URL}/transactions`),
-        fetch(`${BASE_URL}/wallet/balance`),
-        fetch(`${BASE_URL}/ads/my`),
+        fetch(`${BASE_URL}/my/products`, { headers: getAuthHeaders() }),
+        fetch(`${BASE_URL}/transactions?role=seller`, { headers: getAuthHeaders() }),
+        fetch(`${BASE_URL}/wallet/balance`, { headers: getAuthHeaders() }),
+        fetch(`${BASE_URL}/ads/my`, { headers: getAuthHeaders() }),
       ]);
 
       const prodJson = await prodRes.json();
@@ -96,14 +112,6 @@ export default function SellerDashboard() {
       if (adsJson.success) {
         setAds(adsJson.data.data || adsJson.data);
       }
-
-      // Cache data
-      localStorage.setItem('seller_dashboard_data', JSON.stringify({
-        myProducts: prodJson.data.data || prodJson.data,
-        transactions: transJson.data.data || transJson.data,
-        wallet: walletJson.data,
-        ads: adsJson.data.data || adsJson.data,
-      }));
     } catch (error) {
       console.error("Error fetch:", error);
     } finally {
@@ -118,22 +126,12 @@ export default function SellerDashboard() {
     return "/no-image.png";
   };
 
-  const sellerMenus = [
-    { name: "Dashboard", href: "/seller" },
-    { name: "Produk", href: "/seller/products" },
-    { name: "Transaksi", href: "/seller/transactions" },
-    { name: "Wallet", href: "/seller/wallet" },
-    { name: "Ads", href: "/seller/ads" },
-    { name: "Notifikasi", href: "/seller/notifications" },
-    { name: "Pindah ke halaman pembeli", href: "/" }
-  ];
-
   return (
     <div className="flex min-h-screen w-full bg-white">
       {/* Sidebar */}
       <div className="w-64 bg-white border-r p-4 flex flex-col justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-blue-500"  style={{ letterSpacing: '2px' }}>Rather's</h1>
+          <h1 className="text-2xl font-bold text-blue-500"  style={{ letterSpacing: '2px' }}>Rather&apos;s</h1>
           <p className="text-sm text-gray-500 mb-4">Seller Dashboard</p>
 
           <nav className="mt-6 space-y-2">
@@ -160,12 +158,8 @@ export default function SellerDashboard() {
               S
             </div>
             <div>
-              <p className="text-sm font-medium text-primary">
-                Seller Name
-              </p>
-              <p className="text-xs text-blue-600 cursor-pointer">
-                Lihat Profil
-              </p>
+              <p className="text-sm font-medium text-gray-800">Seller Name</p>
+              <p className="text-xs text-blue-600 cursor-pointer">Lihat Profil</p>
             </div>
           </div>
           <button
@@ -194,7 +188,7 @@ export default function SellerDashboard() {
           </div>
           <div className="bg-white p-4 rounded-lg shadow">
             <h3 className="text-lg font-semibold text-primary">Saldo Wallet</h3>
-            <p className="text-2xl font-bold text-orange-600">Rp {wallet.balance.toLocaleString("id-ID")}</p>
+            <p className="text-2xl font-bold text-orange-600">Rp {(wallet.balance ?? 0).toLocaleString("id-ID")}</p>
           </div>
           <div className="bg-white p-4 rounded-lg shadow">
             <h3 className="text-lg font-semibold text-primary">Iklan Aktif</h3>
@@ -237,13 +231,16 @@ export default function SellerDashboard() {
                   <p className="text-xs text-gray-500">{new Date(t.created_at).toLocaleDateString()}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-semibold">Rp {t.total.toLocaleString("id-ID")}</p>
+                  <p className="text-sm font-semibold">Rp {(t.final_amount ?? 0).toLocaleString("id-ID")}</p>
                   <p className={`text-xs ${t.status === 'completed' ? 'text-green-600' : 'text-yellow-600'}`}>
                     {t.status}
                   </p>
                 </div>
               </div>
             ))}
+            {!loading && transactions.length === 0 && (
+              <p className="text-sm text-gray-400 text-center py-4">Belum ada transaksi</p>
+            )}
           </div>
         </div>
       </div>

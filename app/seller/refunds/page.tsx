@@ -20,8 +20,14 @@ export default function SellerRefundsPage() {
   const pathname = usePathname();
   const [loading, setLoading] = useState(true);
   const [refunds, setRefunds] = useState<any[]>([]);
+  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
+    // Load user
+    const userStr = localStorage.getItem("current_user");
+    if (userStr) {
+      try { setUser(JSON.parse(userStr)); } catch { /* ignore */ }
+    }
     // Menggunakan Mock Data karena spesifikasi Backend untuk Seller View Refund belum ada
     const mockRefunds = [
       {
@@ -72,7 +78,7 @@ export default function SellerRefundsPage() {
   }
 
   return (
-    <div className="flex min-h-screen w-full bg-white font-sans text-slate-800">
+    <div className="flex min-h-screen w-full bg-white">
       
       {/* ── Sidebar ── */}
       <div className="w-64 bg-white border-r p-4 hidden md:flex flex-col justify-between">
