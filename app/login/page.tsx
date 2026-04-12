@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import api from "@/services/api";
@@ -134,7 +134,7 @@ export default function LoginPage() {
                 setEmail(e.target.value);
                 setErrorMessage("");
               }}
-              onKeyPress={handleKeyPress}
+              onKeyUp={handleKeyPress}
               placeholder="nama@email.com"
               className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
             />
@@ -150,7 +150,7 @@ export default function LoginPage() {
                   setPassword(e.target.value);
                   setErrorMessage("");
                 }}
-                onKeyPress={handleKeyPress}
+                onKeyUp={handleKeyPress}
                 placeholder="Masukkan password"
                 className="w-full rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 pr-12 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
               />
@@ -224,38 +224,6 @@ export default function LoginPage() {
 
           <button
             type="button"
-<<<<<<< HEAD
-            onClick={() => handleSocialLogin("google")}
-            disabled={loading || oauthLoading}
-            className="w-full flex items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-70"
-          >
-            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white">
-              <svg
-                viewBox="0 0 24 24"
-                className="h-4 w-4"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M21.35 11.1H12v2.8h5.2c-.25 1.45-1.3 2.8-2.8 3.45v2.85h4.55c2.65-2.45 4.15-6.05 4.15-10.1 0-.7-.05-1.4-.15-2.05z"
-                  fill="#4285F4"
-                />
-                <path
-                  d="M12 22c2.7 0 4.95-.9 6.6-2.45l-4.55-2.85c-.8.55-1.85.85-3.05.85-2.35 0-4.35-1.6-5.05-3.75H2.25v2.35C3.9 19.9 7.7 22 12 22z"
-                  fill="#34A853"
-                />
-                <path
-                  d="M6.95 13.8c-.2-.6-.35-1.25-.35-1.8s.15-1.2.35-1.8V7.85H2.25A9.97 9.97 0 0 0 1 12c0 1.6.35 3.15.95 4.55z"
-                  fill="#FBBC05"
-                />
-                <path
-                  d="M12 5.4c1.45 0 2.75.5 3.8 1.45l2.85-2.85C16.95 2.35 14.7 1.4 12 1.4 7.7 1.4 3.9 3.5 2.25 7.85l4.7 3.5C7.65 7 9.65 5.4 12 5.4z"
-                  fill="#EA4335"
-                />
-              </svg>
-            </span>
-            {loading || oauthLoading ? "Memproses..." : "Masuk dengan Google"}
-=======
             onClick={handleGoogleLogin}
             disabled={oauthLoading}
             className="w-full flex items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -281,23 +249,10 @@ export default function LoginPage() {
                 <span>Masuk dengan Google</span>
               </>
             )}
->>>>>>> efc0a269f6d284a59a797098dfcac5566bc96b5e
           </button>
 
           <button
             type="button"
-<<<<<<< HEAD
-            onClick={() => handleSocialLogin("facebook")}
-            disabled={loading || oauthLoading}
-            className="w-full flex items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-70"
-          >
-            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-blue-50 text-blue-600">
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
-                <path d="M22 12.07C22 6.75 17.52 2.7 12 2.7S2 6.75 2 12.07c0 4.98 3.66 9.1 8.44 9.95v-7.05H7.9v-2.9h2.54V9.8c0-2.51 1.49-3.9 3.77-3.9 1.09 0 2.23.2 2.23.2v2.45h-1.26c-1.24 0-1.63.77-1.63 1.56v1.87h2.78l-.44 2.9h-2.34v7.05C18.34 21.17 22 17.05 22 12.07Z" />
-              </svg>
-            </span>
-            {loading || oauthLoading ? "Memproses..." : "Masuk dengan Facebook"}
-=======
             onClick={handleFacebookLogin}
             disabled={oauthLoading}
             className="w-full flex items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -320,7 +275,6 @@ export default function LoginPage() {
                 <span>Masuk dengan Facebook</span>
               </>
             )}
->>>>>>> efc0a269f6d284a59a797098dfcac5566bc96b5e
           </button>
         </div>
 
