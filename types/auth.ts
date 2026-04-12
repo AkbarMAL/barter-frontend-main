@@ -1,10 +1,43 @@
+export interface UserProfile {
+  id?: number;
+  user_id?: number;
+  bio?: string;
+  address?: string;
+  city?: string;
+  province?: string;
+  latitude?: number;
+  longitude?: number;
+}
+
+export interface SellerProfile {
+  id?: number;
+  user_id?: number;
+  shop_name: string;
+  shop_description?: string;
+  shop_banner?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface User {
   id: number;
   name: string;
   email: string;
-  role: 'buyer' | 'seller' | 'both';
   phone?: string;
   avatar?: string;
+  wa_number?: string;
+  is_buyer: boolean;
+  is_seller: boolean;
+  is_admin: boolean;
+  is_active: boolean;
+  is_verified?: boolean;
+  provider?: string;
+  provider_id?: string;
+  profile?: UserProfile;
+  sellerProfile?: SellerProfile | null;
+  roles?: string[];
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface LoginResponse {
@@ -13,6 +46,9 @@ export interface LoginResponse {
   data: {
     user: User;
     token: string;
+    roles: string[];
+    is_seller: boolean;
+    seller_profile?: SellerProfile | null;
   };
 }
 
@@ -22,5 +58,36 @@ export interface RegisterResponse {
   data: {
     user: User;
     token: string;
+    roles: string[];
   };
+}
+
+export interface ActivateSellerRequest {
+  shop_name: string;
+  shop_description?: string;
+  wa_number?: string;
+}
+
+export interface ActivateSellerResponse {
+  success: boolean;
+  message: string;
+  data: User;
+  roles: string[];
+}
+
+export interface SocialAuthUser {
+  id: string;
+  name: string;
+  email: string;
+  avatar?: string;
+  token: string;
+  refreshToken?: string;
+}
+
+export interface SocialAuthCallback {
+  success: boolean;
+  token: string;
+  token_type: string;
+  user: User;
+  roles: string[];
 }

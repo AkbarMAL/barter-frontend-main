@@ -22,6 +22,21 @@ export const getCurrentUser = () => {
 };
 
 /**
+ * Get user roles array
+ */
+export const getUserRoles = (): string[] => {
+  if (typeof window === "undefined") return [];
+  const userStr = localStorage.getItem("current_user");
+  if (!userStr) return [];
+  try {
+    const user = JSON.parse(userStr);
+    return user.roles || (user.is_seller ? ['buyer', 'seller'] : ['buyer']);
+  } catch {
+    return [];
+  }
+};
+
+/**
  * Check if user is authenticated
  */
 export const isAuthenticated = (): boolean => {
@@ -31,7 +46,7 @@ export const isAuthenticated = (): boolean => {
 };
 
 /**
- * Check if user is seller (can be seller or both buyer+seller)
+ * Check if user is seller (using is_seller flag from backend)
  */
 export const isSeller = (): boolean => {
   if (typeof window === "undefined") return false;
@@ -39,7 +54,7 @@ export const isSeller = (): boolean => {
   if (!userStr) return false;
   try {
     const user = JSON.parse(userStr);
-    return user.role === "seller" || user.role === "both";
+    return user.is_seller === true;
   } catch {
     return false;
   }
@@ -54,9 +69,39 @@ export const isBuyer = (): boolean => {
   if (!userStr) return false;
   try {
     const user = JSON.parse(userStr);
-    return user.role === "buyer" || user.role === "both";
+    return user.is_buyer === true;
   } catch {
     return false;
+  }
+};
+
+/**
+ * Check if user is admin
+ */
+export const isAdmin = (): boolean => {
+  if (typeof window === "undefined") return false;
+  const userStr = localStorage.getItem("current_user");
+  if (!userStr) return false;
+  try {
+    const user = JSON.parse(userStr);
+    return user.is_admin === true;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Get seller profile if user is seller
+ */
+export const getSellerProfile = () => {
+  if (typeof window === "undefined") return null;
+  const userStr = localStorage.getItem("current_user");
+  if (!userStr) return null;
+  try {
+    const user = JSON.parse(userStr);
+    return user.sellerProfile || null;
+  } catch {
+    return null;
   }
 };
 
@@ -72,10 +117,34 @@ export const saveAuthData = (token: string, user: any) => {
 };
 
 /**
+ * Update user data in localStorage
+ */
+export const updateCurrentUser = (userData: any) => {
+  localStorage.setItem("current_user", JSON.stringify(userData));
+};
+
+/**
  * Logout from application
  */
-export const logout = () => {
+export const logout = async () => {
   if (typeof window === "undefined") return;
+  
+  // Call logout endpoint
+  try {
+    const token = getAuthToken();
+    if (token) {
+      // Try to call logout API, but don't fail if it fails
+      fetch("/api/v1/logout", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }).catch(() => {
+        // Silently fail
+      });
+    }
+  } catch {}
   
   // Clear localStorage
   localStorage.removeItem("auth_token");
