@@ -125,7 +125,3 @@ export default function AuthCallbackPage() {
     </div>
   );
 }
-      </div>
-    </div>
-  );
-}

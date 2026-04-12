@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { logout } from "@/services/authentication";
+import SidebarProfile from "@/components/sidebar-profile";
 
 const BASE_URL = "http://127.0.0.1:8000/api/v1";
 
@@ -247,24 +248,7 @@ export default function SellerTransactionsPage() {
                 </div>
 
                 {/* Profile */}
-                <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm font-bold">
-                            S
-                        </div>
-                        <div>
-                            <p className="text-sm font-medium text-gray-800">Seller Name</p>
-                            <p className="text-xs text-blue-600 cursor-pointer">Lihat Profil</p>
-                        </div>
-                    </div>
-                    <button
-                        type="button"
-                        onClick={logout}
-                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
-                    >
-                        Logout
-                    </button>
-                </div>
+                <SidebarProfile user={user} />
             </div>
 
             {/* ── Main Content ── */}

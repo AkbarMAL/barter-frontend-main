@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { logout } from "@/services/authentication";
+import SidebarProfile from "@/components/sidebar-profile";
 import { usePathname } from "next/navigation";
 
 const BASE_URL = "http://127.0.0.1:8000/api/v1";
@@ -131,7 +132,7 @@ export default function SellerDashboard() {
       {/* Sidebar */}
       <div className="w-64 bg-white border-r p-4 flex flex-col justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-blue-500"  style={{ letterSpacing: '2px' }}>Rather&apos;s</h1>
+          <h1 className="text-2xl font-bold text-blue-500" style={{ letterSpacing: '2px' }}>Rather&apos;s</h1>
           <p className="text-sm text-gray-500 mb-4">Seller Dashboard</p>
 
           <nav className="mt-6 space-y-2">
@@ -151,25 +152,7 @@ export default function SellerDashboard() {
           </nav>
         </div>
 
-        {/* Profile */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center">
-              S
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-800">Seller Name</p>
-              <p className="text-xs text-blue-600 cursor-pointer">Lihat Profil</p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={logout}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
-          >
-            Logout
-          </button>
-        </div>
+        <SidebarProfile user={user} />
       </div>
 
       {/* Main Content */}

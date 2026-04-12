@@ -5,7 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { HeartIcon } from "@heroicons/react/24/outline";
 import { HeartIcon as HeartIconSolid, StarIcon } from "@heroicons/react/24/solid";
-import { logout } from "@/services/authentication";
+import { logout, isAuthenticated, getCurrentUser } from "@/services/authentication";
+import SidebarProfile from "@/components/sidebar-profile";
 
 // ================= DUMMY DATA FOR PRESENTATION =================
 // Menggunakan Unsplash API untuk gambar agar langsung tampil cantik
@@ -92,15 +93,25 @@ const dummyRecommendations = [
 
 export default function Dashboard() {
   const pathname = usePathname();
+  const [isUserAuthenticated, setIsUserAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   // State untuk menyimpan daftar id produk yang difavoritkan (Mockup)
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
 
-  // Load favorites dari localStorage on component mount
+  // Load favorites dan check auth on component mount
   useEffect(() => {
     const mockStr = localStorage.getItem('mock_favorites');
     if (mockStr) {
       setFavorites(new Set(JSON.parse(mockStr)));
+    }
+
+    // Check authentication status and get user data
+    const authenticated = isAuthenticated();
+    setIsUserAuthenticated(authenticated);
+    if (authenticated) {
+      const user = getCurrentUser();
+      setCurrentUser(user);
     }
   }, []);
 
@@ -192,29 +203,7 @@ export default function Dashboard() {
           </nav>
         </div>
 
-        {/* Profile */}
-        <div className="space-y-3 pb-4">
-          <div className="flex items-center gap-3 px-2">
-            <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold shadow-sm">
-              BS
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-gray-800 leading-tight">
-                Budi Santoso
-              </p>
-              <p className="text-xs text-blue-600 cursor-pointer mt-0.5 hover:underline">
-                Lihat Profil
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={logout}
-            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-gray-300 hover:bg-gray-50 shadow-sm"
-          >
-            Logout
-          </button>
-        </div>
+        <SidebarProfile user={currentUser} />
       </div>
 
       {/* Main Content Area - with left margin to accommodate fixed sidebar */}

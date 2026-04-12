@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { HeartIcon as HeartIconSolid, StarIcon } from "@heroicons/react/24/solid";
 import { logout } from "@/services/authentication";
+import SidebarProfile from "@/components/sidebar-profile";
 import { usePathname } from "next/navigation";
 
 const BASE_URL = "http://127.0.0.1:8000/api/v1";
@@ -46,8 +47,13 @@ export default function FavoritesPage() {
   const pathname = usePathname();
   const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
+    const userStr = localStorage.getItem("current_user");
+    if (userStr) {
+      try { setUser(JSON.parse(userStr)); } catch { /* ignore */ }
+    }
     fetchFavorites();
   }, []);
 
@@ -181,29 +187,7 @@ export default function FavoritesPage() {
           </nav>
         </div>
 
-        {/* Profile */}
-        <div className="space-y-3 pb-4">
-          <div className="flex items-center gap-3 px-2">
-            <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold shadow-sm">
-              BS
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-gray-800 leading-tight">
-                Budi Santoso
-              </p>
-              <p className="text-xs text-blue-600 cursor-pointer mt-0.5 hover:underline">
-                Lihat Profil
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={logout}
-            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-gray-300 hover:bg-gray-50 shadow-sm"
-          >
-            Logout
-          </button>
-        </div>
+        <SidebarProfile user={user} />
       </div>
 
       {/* Main Content */}
