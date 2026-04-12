@@ -2,56 +2,109 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import api from "@/services/api";
+import { saveAuthData } from "@/services/authentication";
 
 export default function RegisterPage() {
+  const router = useRouter();
   const [form, setForm] = useState({
     name: "",
     email: "",
     phone: "",
     password: "",
     password_confirmation: "",
-    role: "buyer",
-    shop_name: "",
+    wa_number: "",
   });
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const handleChange = (e: any) => {
     setForm({
       ...form,
       [e.target.name]: e.target.value,
     });
+    setErrorMessage("");
   };
 
   const handleRegister = async () => {
     if (!acceptedTerms) {
-      alert("Silakan setujui syarat dan ketentuan terlebih dahulu.");
+      setErrorMessage("Silakan setujui syarat dan ketentuan terlebih dahulu.");
+      return;
+    }
+
+    if (!form.name || !form.email || !form.phone || !form.password) {
+      setErrorMessage("Semua field harus diisi");
+      return;
+    }
+
+    if (form.password !== form.password_confirmation) {
+      setErrorMessage("Password tidak cocok");
       return;
     }
 
     setLoading(true);
     try {
-      const payload: any = { ...form };
-      if (payload.role !== "seller") {
-        delete payload.shop_name;
-      }
+      // Prepare payload - match backend requirements
+      const payload = {
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        password: form.password,
+        password_confirmation: form.password_confirmation,
+        wa_number: form.wa_number || form.phone,
+      };
 
       const res = await api.post("/register", payload);
-      console.log("REGISTER:", res.data);
-      alert("Registrasi berhasil, silakan login");
-      window.location.href = "/login";
-    } catch (err: any) {
-      console.log(err.response?.data);
-      if (err.response?.status === 422) {
-        alert("Validasi gagal: " + JSON.stringify(err.response.data.errors));
+      
+      if (res.data.success) {
+        // Save auth data from response
+        const { token, user } = res.data.data;
+        
+        if (!token || !user) {
+          setErrorMessage("Response dari server tidak lengkap. Token atau user data hilang.");
+          setLoading(false);
+          console.error("Missing token or user in register response:", res.data.data);
+          return;
+        }
+
+        saveAuthData(token, user);
+        
+        setErrorMessage("");
+        alert("Registrasi berhasil! Selamat datang di RatheR");
+        
+        // Small delay to ensure localStorage is synced before navigation
+        setTimeout(() => {
+          router.push("/");
+        }, 100);
       } else {
-        alert("Register gagal");
+        setErrorMessage(res.data.message || "Registrasi gagal. Silakan coba lagi.");
+        setLoading(false);
       }
-    } finally {
+    } catch (err: any) {
+      console.error("Register error:", err.response?.data);
+      const errors = err.response?.data?.errors;
+      if (errors) {
+        // Format validation errors
+        const errorText = Object.values(errors)
+          .flat()
+          .join(", ");
+        setErrorMessage(errorText);
+      } else {
+        setErrorMessage(
+          err.response?.data?.message || "Registrasi gagal. Silakan coba lagi."
+        );
+      }
       setLoading(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleRegister();
     }
   };
 
@@ -63,45 +116,67 @@ export default function RegisterPage() {
           <p className="text-sm text-slate-500 mt-2">Buat akun baru Anda</p>
         </div>
 
+        {errorMessage && (
+          <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+            {errorMessage}
+          </div>
+        )}
+
         <div className="space-y-4">
           <label className="block text-sm font-medium text-slate-700">
-            Nama Lengkap
+            Nama Lengkap <span className="text-red-500">*</span>
           </label>
           <input
             type="text"
             name="name"
             value={form.name}
             onChange={handleChange}
+            onKeyPress={handleKeyPress}
             placeholder="Masukkan nama lengkap"
             className="w-full rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
           />
 
           <label className="block text-sm font-medium text-slate-700">
-            Email
+            Email <span className="text-red-500">*</span>
           </label>
           <input
             type="email"
             name="email"
             value={form.email}
             onChange={handleChange}
+            onKeyPress={handleKeyPress}
             placeholder="nama@email.com"
             className="w-full rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
           />
 
           <label className="block text-sm font-medium text-slate-700">
-            Nomor Telepon
+            Nomor Telepon <span className="text-red-500">*</span>
           </label>
           <input
             type="tel"
             name="phone"
             value={form.phone}
             onChange={handleChange}
+            onKeyPress={handleKeyPress}
             placeholder="08xx xxxx xxxx"
             className="w-full rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
           />
 
           <label className="block text-sm font-medium text-slate-700">
-            Password
+            Nomor WhatsApp (opsional)
+          </label>
+          <input
+            type="tel"
+            name="wa_number"
+            value={form.wa_number}
+            onChange={handleChange}
+            onKeyPress={handleKeyPress}
+            placeholder="08xx xxxx xxxx (atau gunakan nomor telepon)"
+            className="w-full rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+          />
+
+          <label className="block text-sm font-medium text-slate-700">
+            Password <span className="text-red-500">*</span>
           </label>
           <div className="relative">
             <input
@@ -109,6 +184,7 @@ export default function RegisterPage() {
               name="password"
               value={form.password}
               onChange={handleChange}
+              onKeyPress={handleKeyPress}
               placeholder="Minimal 8 karakter"
               className="w-full rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 pr-12 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
             />
@@ -122,7 +198,7 @@ export default function RegisterPage() {
           </div>
 
           <label className="block text-sm font-medium text-slate-700">
-            Konfirmasi Password
+            Konfirmasi Password <span className="text-red-500">*</span>
           </label>
           <div className="relative">
             <input
@@ -130,6 +206,7 @@ export default function RegisterPage() {
               name="password_confirmation"
               value={form.password_confirmation}
               onChange={handleChange}
+              onKeyPress={handleKeyPress}
               placeholder="Ulangi password"
               className="w-full rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 pr-12 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
             />
@@ -167,7 +244,7 @@ export default function RegisterPage() {
             disabled={loading}
             className="w-full rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
           >
-            {loading ? "Loading..." : "Daftar"}
+            {loading ? "Memproses..." : "Daftar"}
           </button>
 
           <div className="flex items-center gap-3 text-sm text-slate-400">
@@ -234,3 +311,4 @@ export default function RegisterPage() {
     </div>
   );
 }
+
