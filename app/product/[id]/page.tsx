@@ -60,6 +60,9 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
   const [isLoading, setIsLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
   const [isMockProduct, setIsMockProduct] = useState(false);
+  const [sellerWhatsApp, setSellerWhatsApp] = useState<string>("");
+  const [sellerSocialMedia, setSellerSocialMedia] = useState<{ name: string; url: string }[]>([]);
+  const [isContactPopupOpen, setIsContactPopupOpen] = useState(false);
 
   // Cek jika ID berawalan 'p' atau 'r'
   useEffect(() => {
@@ -93,6 +96,11 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
       followers: 189,
       totalProducts: 1
     });
+    setSellerWhatsApp("6281234567890");
+    setSellerSocialMedia([
+      { name: "Instagram", url: "https://instagram.com/budi.santoso" },
+      { name: "Tokopedia", url: "https://www.tokopedia.com/budisantoso" },
+    ]);
 
     setSellerStats({
       average_rating: 5.0,
@@ -144,6 +152,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
         sellerId: pData.seller?.id,
         sellerName: pData.seller?.name || "Penjual Anonim",
       });
+      setSellerWhatsApp(pData.seller?.wa_number || pData.seller?.profile?.wa_number || "");
+      setSellerSocialMedia(pData.seller?.profile?.social_media || []);
 
       // 2. Fetch Seller Ratings (jika ID real backend ada provider ratingnya)
       if (pData.seller?.id) {
@@ -222,6 +232,28 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
       setIsFavorite(isFavorite); // rollback
       alert("Terjadi kesalahan.");
     }
+  };
+
+  const formatWhatsAppUrl = (number: string) => {
+    const digits = number.replace(/\D/g, "");
+    return digits ? `https://wa.me/${digits}` : "";
+  };
+
+  const openContact = () => {
+    setIsContactPopupOpen(true);
+  };
+
+  const closeContact = () => {
+    setIsContactPopupOpen(false);
+  };
+
+  const openWhatsApp = () => {
+    const url = formatWhatsAppUrl(sellerWhatsApp);
+    if (!url) {
+      alert("Nomor WhatsApp penjual belum tersedia.");
+      return;
+    }
+    window.open(url, "_blank");
   };
 
   if (isLoading) {
@@ -314,7 +346,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
                   Beli Sekarang
                 </button>
-                <button className="w-full bg-white border-2 border-blue-600 text-blue-600 hover:bg-blue-50 font-bold py-3 px-4 rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2 text-sm">
+                <button onClick={openContact} className="w-full bg-white border-2 border-blue-600 text-blue-600 hover:bg-blue-50 font-bold py-3 px-4 rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2 text-sm">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
                   Hubungi Penjual
                 </button>
@@ -325,7 +357,25 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
               </button>
             </div>
 
-            <div className="mt-10 border-t border-gray-100 pt-8">
+            <div className="mt-6 space-y-3">
+              <div className="rounded-2xl bg-slate-50 px-4 py-3">
+                <p className="text-sm font-semibold text-slate-900">Lokasi Produk</p>
+                <p className="text-xs text-slate-500">{product.location}</p>
+              </div>
+              <div className="rounded-3xl overflow-hidden shadow-sm">
+                <div className="h-25 md:h-35">
+                  <iframe
+                    title="Lokasi Produk"
+                    src={`https://www.google.com/maps?q=${encodeURIComponent(product.location)}&output=embed`}
+                    className="w-full h-full border-0"
+                    allowFullScreen
+                    loading="lazy"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5 border-t border-gray-100 pt-3">
               <h3 className="font-bold text-gray-900 text-lg mb-4">Deskripsi</h3>
               <div className="prose prose-sm text-gray-600 leading-relaxed max-w-none">
                 <p>{product.description}</p>
@@ -381,13 +431,13 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
           </div>
 
           <div className="mt-6 flex gap-4">
-            <button className="flex-1 flex items-center justify-center gap-2 rounded-xl border-2 border-blue-600 bg-white px-4 py-3 text-sm font-bold text-blue-600 transition hover:bg-blue-50">
+            <button onClick={openContact} className="flex-1 flex items-center justify-center gap-2 rounded-xl border-2 border-blue-600 bg-white px-4 py-3 text-sm font-bold text-blue-600 transition hover:bg-blue-50">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
               Hubungi Penjual
             </button>
-            <button className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-bold text-gray-700 transition hover:bg-gray-50 hover:text-gray-900">
+            <button onClick={openContact} className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-bold text-gray-700 transition hover:bg-gray-50 hover:text-gray-900">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
-              Kunjungi Toko
+              Hubungi Penjual
             </button>
           </div>
         </div>
@@ -472,6 +522,72 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
         </div>
 
       </div>
+
+      {isContactPopupOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-slate-500">Hubungi Penjual</p>
+                <h2 className="text-xl font-bold text-slate-900">Media Kontak</h2>
+              </div>
+              <button
+                type="button"
+                onClick={closeContact}
+                className="text-2xl leading-none text-slate-400 hover:text-slate-600"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="mt-6 space-y-4">
+              {sellerWhatsApp ? (
+                <button
+                  type="button"
+                  onClick={openWhatsApp}
+                  className="w-full rounded-2xl bg-green-500 px-4 py-3 text-sm font-semibold text-white hover:bg-green-600 text-center"
+                >
+                  WhatsApp
+                </button>
+              ) : (
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 text-center">
+                  Nomor WhatsApp belum tersedia.
+                </div>
+              )}
+
+              {sellerSocialMedia.length > 0 ? (
+                <div className="space-y-3">
+                  {sellerSocialMedia.map((social, index) => (
+                    <a
+                      key={index}
+                      href={social.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-100 text-center"
+                    >
+                      {social.name}
+                    </a>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 text-center">
+                  Media sosial penjual belum tersedia.
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                type="button"
+                onClick={closeContact}
+                className="rounded-2xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

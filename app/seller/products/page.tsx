@@ -27,14 +27,26 @@ interface ApiProduct {
   stock: number;
   condition: string;
   transaction_type: string;
-  location_city: string;
-  location_province: string;
+  location?: string;
+  location_city?: string;
+  location_province?: string;
+  location_id?: string;
+  latitude?: number;
+  longitude?: number;
   category_id: string | number;
   images?: ProductImage[];
   tags?: string[];
   status?: string;
   created_at?: string;
   category?: Category;
+}
+
+interface LocationSuggestion {
+  id: string;
+  label: string;
+  description: string;
+  latitude: number;
+  longitude: number;
 }
 
 export default function SellerProducts() {
@@ -53,12 +65,16 @@ export default function SellerProducts() {
     stock: '',
     condition: 'new',
     transaction_type: 'cod',
-    location_city: '',
-    location_province: '',
+    location: '',
+    location_id: '',
+    latitude: '',
+    longitude: '',
     category_id: '',
     images: [] as File[],
     tags: [] as string[],
   });
+  const [locationSuggestions, setLocationSuggestions] = useState<LocationSuggestion[]>([]);
+  const [locationLoading, setLocationLoading] = useState(false);
   const [existingImages, setExistingImages] = useState<ProductImage[]>([]);
   const [dragActive, setDragActive] = useState(false);
 
@@ -126,6 +142,37 @@ export default function SellerProducts() {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    const query = formData.location?.trim();
+    if (!query || query.length < 2) {
+      setLocationSuggestions([]);
+      return;
+    }
+
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        setLocationLoading(true);
+        const authHeader = getAuthHeader();
+        const res = await fetch(`${BASE_URL}/locations/suggestions?q=${encodeURIComponent(query)}`, {
+          headers: authHeader || {},
+        });
+        const json = await res.json();
+        if (res.ok && json.success) {
+          setLocationSuggestions(json.suggestions || []);
+        } else {
+          setLocationSuggestions([]);
+        }
+      } catch (error) {
+        console.error('Location fetch error:', error);
+        setLocationSuggestions([]);
+      } finally {
+        setLocationLoading(false);
+      }
+    }, 300);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [formData.location]);
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -174,18 +221,22 @@ export default function SellerProducts() {
       stock: '',
       condition: 'new',
       transaction_type: 'cod',
-      location_city: '',
-      location_province: '',
+      location: '',
+      location_id: '',
+      latitude: '',
+      longitude: '',
       category_id: '',
       images: [],
       tags: [],
     });
+    setLocationSuggestions([]);
     setModalOpen(true);
   };
 
   const handleEditProduct = (product: ApiProduct) => {
     setEditingProduct(product);
     setExistingImages(product.images || []);
+    const fallbackLocation = product.location || [product.location_city, product.location_province].filter(Boolean).join(', ');
     setFormData({
       title: product.title,
       description: product.description,
@@ -193,12 +244,15 @@ export default function SellerProducts() {
       stock: String(product.stock),
       condition: product.condition,
       transaction_type: product.transaction_type,
-      location_city: product.location_city,
-      location_province: product.location_province,
+      location: fallbackLocation,
+      location_id: product.location_id || '',
+      latitude: product.latitude ? String(product.latitude) : '',
+      longitude: product.longitude ? String(product.longitude) : '',
       category_id: String(product.category_id),
       images: [],
       tags: product.tags || [],
     });
+    setLocationSuggestions([]);
     setModalOpen(true);
   };
 
@@ -235,7 +289,7 @@ export default function SellerProducts() {
     e.preventDefault();
     setSubmitLoading(true);
 
-    if (!formData.title || !formData.description || !formData.price || !formData.stock || !formData.category_id || !formData.location_city || !formData.location_province) {
+    if (!formData.title || !formData.description || !formData.price || !formData.stock || !formData.category_id || !formData.location) {
       alert('Semua field harus diisi!');
       setSubmitLoading(false);
       return;
@@ -254,8 +308,27 @@ export default function SellerProducts() {
     data.append('stock', formData.stock);
     data.append('condition', formData.condition);
     data.append('transaction_type', formData.transaction_type);
-    data.append('location_city', formData.location_city);
-    data.append('location_province', formData.location_province);
+    data.append('location', formData.location);
+
+    const locationParts = formData.location
+      .split(',')
+      .map((part) => part.trim())
+      .filter(Boolean);
+    const location_city = locationParts[0] || formData.location;
+    const location_province = locationParts.length > 1 ? locationParts[locationParts.length - 1] : formData.location;
+
+    data.append('location_city', location_city);
+    data.append('location_province', location_province);
+
+    if (formData.location_id) {
+      data.append('location_id', formData.location_id);
+    }
+    if (formData.latitude) {
+      data.append('latitude', formData.latitude);
+    }
+    if (formData.longitude) {
+      data.append('longitude', formData.longitude);
+    }
     data.append('category_id', formData.category_id);
 
     formData.images.forEach((file, index) => {
@@ -547,27 +620,49 @@ export default function SellerProducts() {
                     ))}
                   </select>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-primary">Kota</label>
-                    <input
-                      type="text"
-                      value={formData.location_city}
-                      onChange={(e) => setFormData({ ...formData, location_city: e.target.value })}
-                      className="w-full p-2 border rounded text-primary"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-primary">Provinsi</label>
-                    <input
-                      type="text"
-                      value={formData.location_province}
-                      onChange={(e) => setFormData({ ...formData, location_province: e.target.value })}
-                      className="w-full p-2 border rounded text-primary"
-                      required
-                    />
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-primary">Lokasi</label>
+                  <input
+                    type="text"
+                    value={formData.location}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      location: e.target.value,
+                      location_id: '',
+                      latitude: '',
+                      longitude: '',
+                    })}
+                    className="w-full p-2 border rounded text-primary"
+                    placeholder="Cari lokasi..."
+                    required
+                  />
+                  {locationLoading && (
+                    <p className="mt-2 text-sm text-slate-500">Mencari lokasi...</p>
+                  )}
+                  {locationSuggestions.length > 0 && formData.location.trim().length >= 2 && (
+                    <div className="mt-2 max-h-52 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+                      {locationSuggestions.map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => {
+                            setFormData((prev) => ({
+                              ...prev,
+                              location: item.label,
+                              location_id: item.id,
+                              latitude: String(item.latitude),
+                              longitude: String(item.longitude),
+                            }));
+                            setLocationSuggestions([]);
+                          }}
+                          className="w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100"
+                        >
+                          <span className="block font-medium">{item.label}</span>
+                          <span className="block text-xs text-slate-500">{item.description}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-primary">Gambar (max 5)</label>

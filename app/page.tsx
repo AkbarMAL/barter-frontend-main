@@ -21,80 +21,13 @@ const dummyCategories = [
   { id: 8, name: "Lainnya", icon: "📦" },
 ];
 
-const dummyPromoted = [
-  {
-    id: "p1",
-    title: "iPhone 11 Pro Gold - Mulus Fullset (Sesuai Gambar)",
-    price: 6500000,
-    image: "https://images.unsplash.com/photo-1591337676887-a217a6970a8a?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
-    location: "Jakarta Selatan",
-    rating: 4.8,
-  },
-  {
-    id: "p2",
-    title: "Laptop ASUS VivoBook - Intel Core i5 (Sesuai Gambar)",
-    price: 7200000,
-    image: "https://images.unsplash.com/photo-1593642702749-b7d2a804fbcf?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
-    location: "Bandung",
-    rating: 4.5,
-  },
-  {
-    id: "p3",
-    title: "Kulkas AQUA 1 Pintu Motif Bunga - Dingin Normal",
-    price: 1100000,
-    image: "https://images.unsplash.com/photo-1584568694244-14fbdf83bd30?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
-    location: "Surabaya",
-    rating: 4.9,
-  },
-  {
-    id: "p4",
-    title: "Sony WH-1000XM4 Noise Cancelling Headphones",
-    price: 3500000,
-    image: "https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
-    location: "Jakarta Barat",
-    rating: 5.0,
-  },
-];
-
-const dummyRecommendations = [
-  {
-    id: "r1",
-    title: "MacBook Pro 14\" M1 Pro 2021",
-    price: 25000000,
-    image: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
-    location: "Bandung",
-    rating: 4.9,
-  },
-  {
-    id: "r2",
-    title: "Meja Kayu Minimalis Aesthetic untuk Kerja",
-    price: 1500000,
-    image: "https://images.unsplash.com/photo-1592078615290-033ee584e267?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
-    location: "Surabaya",
-    rating: 4.7,
-  },
-  {
-    id: "r3",
-    title: "Nike Air Jordan 1 Mid Red Men's Sneakers",
-    price: 1800000,
-    image: "https://images.unsplash.com/photo-1549298916-b41d501d3772?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
-    location: "Jakarta Pusat",
-    rating: 4.8,
-  },
-  {
-    id: "r4",
-    title: "Kamera Canon EOS M50 Mark II + Lensa Kit",
-    price: 7500000,
-    image: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80",
-    location: "Yogyakarta",
-    rating: 4.6,
-  },
-];
+const PRODUCT_API_BASE = "http://127.0.0.1:8000/api/v1";
 
 export default function Dashboard() {
   const pathname = usePathname();
   const [isUserAuthenticated, setIsUserAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [products, setProducts] = useState<any[]>([]);
 
   // State untuk menyimpan daftar id produk yang difavoritkan (Mockup)
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
@@ -115,7 +48,50 @@ export default function Dashboard() {
     }
   }, []);
 
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const res = await fetch(`${PRODUCT_API_BASE}/products`);
+        const json = await res.json();
+
+        if (json.success) {
+          const rawProducts = json.data?.data || json.data || [];
+          const normalized = rawProducts.map((item: any) => {
+            const firstImage =
+              item.images?.[0]?.image_path ||
+              item.images?.[0]?.image ||
+              item.photo ||
+              item.image;
+            const imageUrl = firstImage
+              ? firstImage.toString().startsWith("http")
+                ? firstImage.toString()
+                : `http://127.0.0.1:8000/storage/${firstImage}`
+              : "https://via.placeholder.com/500";
+
+            return {
+              id: item.id,
+              title: item.title || item.name || item.product_name || "Produk",
+              price: typeof item.price === "number" ? item.price : Number(item.price) || 0,
+              image: imageUrl,
+              location: item.location_city || item.location || item.city || "Lokasi tidak diketahui",
+              rating: item.rating || item.average_rating || 0,
+            };
+          });
+
+          setProducts(normalized);
+        }
+      } catch (error) {
+        console.error("Failed to load products:", error);
+      }
+    };
+
+    fetchProducts();
+  }, []);
+
   // Fungsi toggle favorit statis & API (mockup + real)
+  const promotedProducts = products.slice(0, 4);
+  const recommendedProducts = products.slice(4, 8);
+
   const handleToggleFavorite = async (e: React.MouseEvent, productId: string | number) => {
     e.preventDefault();
     e.stopPropagation();
@@ -177,7 +153,7 @@ export default function Dashboard() {
           <nav className="mt-8 space-y-2">
             {[
               { name: "Beranda", href: "/" },
-              { name: "Notifikasi", href: "/notifications", badge: 3 },
+              { name: "Notifikasi", href: "/notifications" },
               { name: "Favorit", href: "/favorites" },
               { name: "Pembelian", href: "/purchases" },
               { name: "Pindah ke seller", href: "/seller" },
@@ -192,12 +168,6 @@ export default function Dashboard() {
                   }`}
               >
                 <span>{item.name}</span>
-
-                {item.badge && (
-                  <span className="bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full font-bold">
-                    {item.badge}
-                  </span>
-                )}
               </Link>
             ))}
           </nav>
@@ -262,7 +232,7 @@ export default function Dashboard() {
               </Link>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-              {dummyPromoted.map((p) => (
+              {promotedProducts.map((p) => (
                 <Link
                   key={p.id}
                   href={`/product/${p.id}`}
@@ -286,7 +256,7 @@ export default function Dashboard() {
                       onClick={(e) => handleToggleFavorite(e, p.id)}
                       className="absolute top-3 right-3 p-2 bg-white rounded-full shadow-md transition-transform hover:scale-110 z-10"
                     >
-                      {favorites.has(p.id) ? (
+                      {favorites.has(String(p.id)) ? (
                         <HeartIconSolid className="w-5 h-5 text-red-500" />
                       ) : (
                         <HeartIcon className="w-5 h-5 text-gray-400" />
@@ -327,7 +297,7 @@ export default function Dashboard() {
           <section>
             <h2 className="text-lg font-bold text-gray-900 mb-4">Rekomendasi Untukmu</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-              {dummyRecommendations.map((r) => (
+              {recommendedProducts.map((r) => (
                 <Link
                   key={r.id}
                   href={`/product/${r.id}`}
@@ -346,7 +316,7 @@ export default function Dashboard() {
                       onClick={(e) => handleToggleFavorite(e, r.id)}
                       className="absolute top-3 right-3 p-2 bg-white rounded-full shadow-md transition-transform hover:scale-110 z-10"
                     >
-                      {favorites.has(r.id) ? (
+                      {favorites.has(String(r.id)) ? (
                         <HeartIconSolid className="w-5 h-5 text-red-500" />
                       ) : (
                         <HeartIcon className="w-5 h-5 text-gray-400" />
