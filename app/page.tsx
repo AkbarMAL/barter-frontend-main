@@ -240,17 +240,26 @@ export default function Dashboard() {
 
           {/* Categories Section */}
           <section>
-            <h2 className="text-lg font-bold text-gray-900 mb-4">Kategori</h2>
+            <div className="flex justify-between items-end mb-4">
+              <h2 className="text-lg font-bold text-gray-900">Kategori</h2>
+              <Link href="/Kategori" className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline">
+                Lihat Semua
+              </Link>
+            </div>
             <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-4">
               {dummyCategories.map((cat) => (
-                <div key={cat.id} className="flex flex-col items-center group cursor-pointer">
+                <Link
+                  key={cat.id}
+                  href={`/Kategori/${cat.name.toLowerCase()}`}
+                  className="flex flex-col items-center group cursor-pointer"
+                >
                   <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center text-2xl group-hover:bg-blue-100 transition-colors shadow-sm border border-blue-100/50">
                     {cat.icon}
                   </div>
                   <span className="text-xs font-medium mt-3 text-gray-600 group-hover:text-blue-600 transition-colors text-center">
                     {cat.name}
                   </span>
-                </div>
+                </Link>
               ))}
             </div>
           </section>
