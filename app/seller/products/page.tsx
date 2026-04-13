@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { logout } from "@/services/authentication";
+import SidebarProfile from "@/components/sidebar-profile";
 import { getAuthHeader } from "@/lib/auth-utils";
 import { usePathname } from "next/navigation";
 
@@ -44,6 +45,7 @@ export default function SellerProducts() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<ApiProduct | null>(null);
   const [submitLoading, setSubmitLoading] = useState(false);
+  const [user, setUser] = useState<any>(null);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -115,10 +117,12 @@ export default function SellerProducts() {
   };
 
   useEffect(() => {
-    const token = localStorage.getItem('auth_token');
-    if (!token) {
-      alert('Anda harus login terlebih dahulu!');
+    // Load user from localStorage
+    const userStr = localStorage.getItem("current_user");
+    if (userStr) {
+      try { setUser(JSON.parse(userStr)); } catch { /* ignore */ }
     }
+
     fetchData();
   }, []);
 
@@ -126,6 +130,11 @@ export default function SellerProducts() {
     try {
       setLoading(true);
       const authHeader = getAuthHeader();
+      if (!authHeader) {
+        alert('Anda harus login terlebih dahulu!');
+        setLoading(false);
+        return;
+      }
 
       const [prodRes, catRes] = await Promise.all([
         fetch(`${BASE_URL}/my/products`, { headers: authHeader || {} }),
@@ -329,6 +338,7 @@ export default function SellerProducts() {
     { name: "Dashboard", href: "/seller" },
     { name: "Produk", href: "/seller/products" },
     { name: "Transaksi", href: "/seller/transactions" },
+    { name: "Refunds", href: "/seller/refunds" },
     { name: "Wallet", href: "/seller/wallet" },
     { name: "Ads", href: "/seller/ads" },
     { name: "Notifikasi", href: "/seller/notifications" },
@@ -360,29 +370,7 @@ export default function SellerProducts() {
           </nav>
         </div>
 
-        {/* Profile */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center">
-              S
-            </div>
-            <div>
-              <p className="text-sm font-medium text-primary">
-                Seller Name
-              </p>
-              <p className="text-xs text-blue-600 cursor-pointer">
-                Lihat Profil
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={logout}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
-          >
-            Logout
-          </button>
-        </div>
+        <SidebarProfile user={user} />
       </div>
 
       {/* Main Content */}

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { logout } from "@/services/authentication";
+import SidebarProfile from "@/components/sidebar-profile";
 import { usePathname } from "next/navigation";
 
 const BASE_URL = "http://127.0.0.1:8000/api/v1";
@@ -84,6 +85,7 @@ export default function WalletPage() {
     const [incomes, setIncomes] = useState<Income[]>([]);
     const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
     const [loading, setLoading] = useState(true);
+    const [user, setUser] = useState<any>(null);
 
     // UI states
     const [activeTab, setActiveTab] = useState<ActiveTab>("pemasukan");
@@ -116,6 +118,12 @@ export default function WalletPage() {
 
     // ─── Load saved payment method from localStorage ──────────────────────────
     useEffect(() => {
+        // Load user
+        const userStr = localStorage.getItem("current_user");
+        if (userStr) {
+            try { setUser(JSON.parse(userStr)); } catch { /* ignore */ }
+        }
+        // Load saved payment method
         const saved = localStorage.getItem("wallet_payment_method");
         if (saved) {
             const method: PaymentMethod = JSON.parse(saved);
@@ -276,25 +284,7 @@ export default function WalletPage() {
                     </nav>
                 </div>
 
-                {/* Profile */}
-                <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm font-bold">
-                            S
-                        </div>
-                        <div>
-                            <p className="text-sm font-medium text-gray-800">Seller Name</p>
-                            <p className="text-xs text-blue-600 cursor-pointer">Lihat Profil</p>
-                        </div>
-                    </div>
-                    <button
-                        type="button"
-                        onClick={logout}
-                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
-                    >
-                        Logout
-                    </button>
-                </div>
+                <SidebarProfile user={user} />
             </div>
 
             {/* ── Main Content ── */}
