@@ -146,13 +146,13 @@ export default function SellerRefundsPage() {
 
   const StatusBadge = ({ status }: { status: RefundItem["status"] }) => {
     const map: Record<string, { label: string; className: string }> = {
-      pending:          { label: "Menunggu Tindakan", className: "bg-amber-100 text-amber-800" },
-      seller_reviewing: { label: "Sedang Ditinjau",   className: "bg-blue-100 text-blue-800" },
-      seller_approved:  { label: "Disetujui",          className: "bg-green-100 text-green-800" },
-      seller_rejected:  { label: "Ditolak",            className: "bg-red-100 text-red-700" },
-      admin_reviewing:  { label: "Review Admin",       className: "bg-purple-100 text-purple-800" },
-      rejected:         { label: "Ditolak Admin",      className: "bg-red-100 text-red-700" },
-      processed:        { label: "Selesai",            className: "bg-gray-100 text-gray-700" },
+      pending: { label: "Menunggu Tindakan", className: "bg-amber-100 text-amber-800" },
+      seller_reviewing: { label: "Sedang Ditinjau", className: "bg-blue-100 text-blue-800" },
+      seller_approved: { label: "Disetujui", className: "bg-green-100 text-green-800" },
+      seller_rejected: { label: "Ditolak", className: "bg-red-100 text-red-700" },
+      admin_reviewing: { label: "Review Admin", className: "bg-purple-100 text-purple-800" },
+      rejected: { label: "Ditolak Admin", className: "bg-red-100 text-red-700" },
+      processed: { label: "Selesai", className: "bg-gray-100 text-gray-700" },
     };
     const { label, className } = map[status] ?? { label: status, className: "bg-gray-100 text-gray-700" };
     return (

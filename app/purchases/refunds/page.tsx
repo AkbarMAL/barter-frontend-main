@@ -112,19 +112,19 @@ function RefundTimeline({ refund }: { refund: RefundItem }) {
     },
     ...(refund.is_escalated
       ? [
-          {
-            key: "escalated",
-            label: "Dieskalasi ke Admin",
-            date: refund.escalated_at,
-            done: true,
-          },
-          {
-            key: "admin",
-            label: "Keputusan Admin",
-            date: ["rejected", "processed"].includes(refund.status) ? refund.updated_at : null,
-            done: ["rejected", "processed"].includes(refund.status),
-          },
-        ]
+        {
+          key: "escalated",
+          label: "Dieskalasi ke Admin",
+          date: refund.escalated_at,
+          done: true,
+        },
+        {
+          key: "admin",
+          label: "Keputusan Admin",
+          date: ["rejected", "processed"].includes(refund.status) ? refund.updated_at : null,
+          done: ["rejected", "processed"].includes(refund.status),
+        },
+      ]
       : []),
     {
       key: "done",
@@ -143,11 +143,11 @@ function RefundTimeline({ refund }: { refund: RefundItem }) {
             <div
               className={`absolute -left-4 w-3 h-3 rounded-full border-2 mt-1 flex-shrink-0
               ${s.done
-                ? s.isRejected
-                  ? "bg-red-400 border-red-400"
-                  : "bg-blue-500 border-blue-500"
-                : "bg-white border-gray-300"
-              }`}
+                  ? s.isRejected
+                    ? "bg-red-400 border-red-400"
+                    : "bg-blue-500 border-blue-500"
+                  : "bg-white border-gray-300"
+                }`}
             />
             <div className="min-w-0">
               <p className={`text-sm font-semibold ${s.done ? (s.isRejected ? "text-red-600" : "text-gray-900") : "text-gray-400"}`}>

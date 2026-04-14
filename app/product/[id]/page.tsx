@@ -1,11 +1,17 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useEffect, useState, use, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { HeartIcon as HeartOutline, ShareIcon } from "@heroicons/react/24/outline";
 import { HeartIcon as HeartSolid, StarIcon, MapPinIcon } from "@heroicons/react/24/solid";
+import {
+  createTransaction,
+  createMidtransPayment,
+  loadMidtransSnap,
+  openMidtransSnap,
+} from "@/services/transaction";
 
 const BASE_URL = "http://127.0.0.1:8000/api/v1";
 
@@ -50,6 +56,250 @@ interface SellerRatings {
   reviews: any[];
 }
 
+// ─── Checkout Modal ──────────────────────────────────────────────────────────
+
+interface CheckoutModalProps {
+  product: any;
+  onClose: () => void;
+  onSuccess: (transactionId: number, type: "cod" | "rekber") => void;
+}
+
+function CheckoutModal({ product, onClose, onSuccess }: CheckoutModalProps) {
+  const [type, setType] = useState<"cod" | "rekber">("rekber");
+  const [address, setAddress] = useState("");
+  const [city, setCity] = useState("");
+  const [notes, setNotes] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const validate = () => {
+    const e: Record<string, string> = {};
+    if (type === "rekber") {
+      if (!address.trim()) e.address = "Alamat pengiriman wajib diisi.";
+      if (!city.trim()) e.city = "Kota tujuan wajib diisi.";
+    }
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const handleSubmit = async () => {
+    if (!validate()) return;
+    setSubmitting(true);
+    try {
+      const res = await createTransaction({
+        product_id: Number(product.id),
+        quantity: 1,
+        type,
+        ...(type === "rekber"
+          ? { shipping_address: address, shipping_city: city }
+          : {}),
+        notes: notes || undefined,
+      });
+      if (res.success) {
+        onSuccess(res.data.id, type);
+      } else {
+        setErrors({ _general: res.message ?? "Gagal membuat pesanan." });
+      }
+    } catch (err: any) {
+      const apiErrors = err?.response?.data?.errors;
+      if (apiErrors) {
+        const flat: Record<string, string> = {};
+        Object.entries(apiErrors).forEach(([k, v]) => {
+          flat[k] = Array.isArray(v) ? v[0] : String(v);
+        });
+        setErrors(flat);
+      } else {
+        setErrors({
+          _general:
+            err?.response?.data?.message ?? "Terjadi kesalahan. Coba lagi.",
+        });
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden">
+        {/* Header */}
+        <div className="px-6 pt-6 pb-4 border-b border-gray-100 flex items-start justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">Checkout</h2>
+            <p className="text-sm text-gray-500 mt-0.5 line-clamp-1">{product.title}</p>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100 transition ml-2 flex-shrink-0">
+            <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="px-6 py-5 space-y-5 max-h-[70vh] overflow-y-auto">
+          {/* General error */}
+          {errors._general && (
+            <div className="bg-red-50 text-red-600 text-sm p-3 rounded-xl border border-red-100">
+              {errors._general}
+            </div>
+          )}
+
+          {/* Ringkasan Produk */}
+          <div className="flex gap-3 items-center bg-gray-50 rounded-2xl p-4">
+            {product.image && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={product.image}
+                alt={product.title}
+                className="w-16 h-16 rounded-xl object-cover border border-gray-200 flex-shrink-0"
+              />
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="font-bold text-gray-900 text-sm line-clamp-2">{product.title}</p>
+              <p className="text-blue-600 font-extrabold text-base mt-1">
+                Rp {Number(product.price).toLocaleString("id-ID")}
+              </p>
+            </div>
+          </div>
+
+          {/* Metode Transaksi */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-3">Metode Transaksi *</label>
+            <div className="grid grid-cols-2 gap-3">
+              {([
+                {
+                  value: "rekber",
+                  label: "Rekber",
+                  sublabel: "Rekening Bersama",
+                  icon: "🏦",
+                  desc: "Bayar via Midtrans (QRIS, GoPay, VA, dll)",
+                },
+                {
+                  value: "cod",
+                  label: "COD",
+                  sublabel: "Cash on Delivery",
+                  icon: "🚗",
+                  desc: "Bayar saat barang tiba",
+                },
+              ] as const).map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => { setType(opt.value); setErrors({}); }}
+                  className={`flex flex-col items-start p-4 rounded-2xl border-2 text-left transition
+                    ${type === opt.value
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-gray-200 hover:border-blue-300"
+                    }`}
+                >
+                  <span className="text-2xl mb-1">{opt.icon}</span>
+                  <span className="font-bold text-sm text-gray-900">{opt.label}</span>
+                  <span className="text-xs text-gray-500 mt-0.5">{opt.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Form Alamat (hanya jika Rekber) */}
+          {type === "rekber" && (
+            <div className="space-y-4">
+              <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 text-sm text-blue-700">
+                <p className="font-semibold mb-1">💳 Pembayaran via Midtrans</p>
+                <p className="text-blue-600 text-xs">Mendukung QRIS, GoPay, ShopeePay, Virtual Account BCA/BNI/BRI, dan kartu kredit.</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Alamat Pengiriman *</label>
+                <textarea
+                  rows={2}
+                  value={address}
+                  onChange={(e) => { setAddress(e.target.value); setErrors(p => ({ ...p, address: "" })); }}
+                  placeholder="Jl. Contoh No. 1, RT/RW, Kelurahan, Kecamatan..."
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+                />
+                {errors.address && <p className="text-xs text-red-500 mt-1">{errors.address}</p>}
+                {errors.shipping_address && <p className="text-xs text-red-500 mt-1">{errors.shipping_address}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Kota Tujuan *</label>
+                <input
+                  type="text"
+                  value={city}
+                  onChange={(e) => { setCity(e.target.value); setErrors(p => ({ ...p, city: "" })); }}
+                  placeholder="cth: Jakarta Selatan, Bandung, Surabaya"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                />
+                {errors.city && <p className="text-xs text-red-500 mt-1">{errors.city}</p>}
+                {errors.shipping_city && <p className="text-xs text-red-500 mt-1">{errors.shipping_city}</p>}
+              </div>
+            </div>
+          )}
+
+          {/* Catatan (opsional) */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+              Catatan <span className="text-gray-400 font-normal">(opsional)</span>
+            </label>
+            <textarea
+              rows={2}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Catatan untuk penjual..."
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+            />
+          </div>
+
+          {/* Ringkasan Biaya */}
+          <div className="bg-gray-50 rounded-2xl p-4 space-y-2 text-sm">
+            <div className="flex justify-between text-gray-600">
+              <span>Harga produk</span>
+              <span className="font-medium">Rp {Number(product.price).toLocaleString("id-ID")}</span>
+            </div>
+            {type === "rekber" && (
+              <div className="flex justify-between text-gray-600">
+                <span>Biaya platform (3%)</span>
+                <span className="font-medium">Rp {Math.round(Number(product.price) * 0.03).toLocaleString("id-ID")}</span>
+              </div>
+            )}
+            <div className="flex justify-between font-bold text-gray-900 border-t border-gray-200 pt-2 mt-2">
+              <span>Total</span>
+              <span className="text-blue-600">
+                Rp {(
+                  Number(product.price) +
+                  (type === "rekber" ? Math.round(Number(product.price) * 0.03) : 0)
+                ).toLocaleString("id-ID")}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 pb-6 pt-4 border-t border-gray-100 flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 py-3 border-2 border-gray-200 text-gray-600 font-bold text-sm rounded-2xl hover:bg-gray-50 transition"
+          >
+            Batal
+          </button>
+          <button
+            id="checkout-submit-btn"
+            onClick={handleSubmit}
+            disabled={submitting}
+            className="flex-2 px-6 py-3 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white font-bold text-sm rounded-2xl transition flex items-center justify-center gap-2 min-w-[140px]"
+          >
+            {submitting && (
+              <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            )}
+            {submitting ? "Memproses..." : (type === "rekber" ? "🛒 Buat & Bayar" : "🚗 Buat Pesanan")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+
 export default function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const { id } = use(params);
@@ -60,6 +310,58 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
   const [isLoading, setIsLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
   const [isMockProduct, setIsMockProduct] = useState(false);
+  const [sellerWhatsApp, setSellerWhatsApp] = useState<string>("");
+  const [sellerSocialMedia, setSellerSocialMedia] = useState<{ name: string; url: string }[]>([]);
+  const [isContactPopupOpen, setIsContactPopupOpen] = useState(false);
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [checkoutToast, setCheckoutToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
+
+  const showCheckoutToast = useCallback((msg: string, type: "success" | "error") => {
+    setCheckoutToast({ msg, type });
+    setTimeout(() => setCheckoutToast(null), 4000);
+  }, []);
+
+  const handleCheckoutSuccess = useCallback(
+    async (transactionId: number, type: "cod" | "rekber") => {
+      setIsCheckoutOpen(false);
+
+      if (type === "cod") {
+        showCheckoutToast("Pesanan COD berhasil dibuat!", "success");
+        setTimeout(() => router.push("/purchases"), 1500);
+        return;
+      }
+
+      // Rekber: generate Midtrans Snap token
+      try {
+        showCheckoutToast("Memuat halaman pembayaran...", "success");
+        const payRes = await createMidtransPayment(transactionId);
+        if (payRes.success) {
+          await loadMidtransSnap(payRes.data.client_key, payRes.data.is_production);
+          openMidtransSnap(payRes.data.snap_token, {
+            onSuccess: () => {
+              showCheckoutToast("Pembayaran berhasil!", "success");
+              setTimeout(() => router.push("/purchases"), 1500);
+            },
+            onPending: () => {
+              router.push(`/purchases/payment/${transactionId}`);
+            },
+            onError: () => {
+              showCheckoutToast("Pembayaran gagal. Coba lagi di halaman Pembelian.", "error");
+              setTimeout(() => router.push(`/purchases/payment/${transactionId}`), 2000);
+            },
+            onClose: () => {
+              router.push(`/purchases/payment/${transactionId}`);
+            },
+          });
+        } else {
+          router.push(`/purchases/payment/${transactionId}`);
+        }
+      } catch {
+        router.push(`/purchases/payment/${transactionId}`);
+      }
+    },
+    [router, showCheckoutToast]
+  );
 
   // Cek jika ID berawalan 'p' atau 'r'
   useEffect(() => {
@@ -93,6 +395,11 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
       followers: 189,
       totalProducts: 1
     });
+    setSellerWhatsApp("6281234567890");
+    setSellerSocialMedia([
+      { name: "Instagram", url: "https://instagram.com/budi.santoso" },
+      { name: "Tokopedia", url: "https://www.tokopedia.com/budisantoso" },
+    ]);
 
     setSellerStats({
       average_rating: 5.0,
@@ -144,6 +451,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
         sellerId: pData.seller?.id,
         sellerName: pData.seller?.name || "Penjual Anonim",
       });
+      setSellerWhatsApp(pData.seller?.wa_number || pData.seller?.profile?.wa_number || "");
+      setSellerSocialMedia(pData.seller?.profile?.social_media || []);
 
       // 2. Fetch Seller Ratings (jika ID real backend ada provider ratingnya)
       if (pData.seller?.id) {
@@ -222,6 +531,28 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
       setIsFavorite(isFavorite); // rollback
       alert("Terjadi kesalahan.");
     }
+  };
+
+  const formatWhatsAppUrl = (number: string) => {
+    const digits = number.replace(/\D/g, "");
+    return digits ? `https://wa.me/${digits}` : "";
+  };
+
+  const openContact = () => {
+    setIsContactPopupOpen(true);
+  };
+
+  const closeContact = () => {
+    setIsContactPopupOpen(false);
+  };
+
+  const openWhatsApp = () => {
+    const url = formatWhatsAppUrl(sellerWhatsApp);
+    if (!url) {
+      alert("Nomor WhatsApp penjual belum tersedia.");
+      return;
+    }
+    window.open(url, "_blank");
   };
 
   if (isLoading) {
@@ -310,11 +641,26 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
 
             <div className="mt-8 space-y-3">
               <div className="grid grid-cols-2 gap-3">
-                <button className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3.5 px-4 rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2 text-sm">
+                <button
+                  id="buy-now-btn"
+                  onClick={() => {
+                    const token = localStorage.getItem("token");
+                    if (!token) {
+                      router.push("/login");
+                      return;
+                    }
+                    if (isMockProduct) {
+                      alert("Pembelian hanya tersedia untuk produk asli.");
+                      return;
+                    }
+                    setIsCheckoutOpen(true);
+                  }}
+                  className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3.5 px-4 rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2 text-sm"
+                >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
                   Beli Sekarang
                 </button>
-                <button className="w-full bg-white border-2 border-blue-600 text-blue-600 hover:bg-blue-50 font-bold py-3 px-4 rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2 text-sm">
+                <button onClick={openContact} className="w-full bg-white border-2 border-blue-600 text-blue-600 hover:bg-blue-50 font-bold py-3 px-4 rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2 text-sm">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
                   Hubungi Penjual
                 </button>
@@ -325,7 +671,25 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
               </button>
             </div>
 
-            <div className="mt-10 border-t border-gray-100 pt-8">
+            <div className="mt-6 space-y-3">
+              <div className="rounded-2xl bg-slate-50 px-4 py-3">
+                <p className="text-sm font-semibold text-slate-900">Lokasi Produk</p>
+                <p className="text-xs text-slate-500">{product.location}</p>
+              </div>
+              <div className="rounded-3xl overflow-hidden shadow-sm">
+                <div className="h-25 md:h-35">
+                  <iframe
+                    title="Lokasi Produk"
+                    src={`https://www.google.com/maps?q=${encodeURIComponent(product.location)}&output=embed`}
+                    className="w-full h-full border-0"
+                    allowFullScreen
+                    loading="lazy"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5 border-t border-gray-100 pt-3">
               <h3 className="font-bold text-gray-900 text-lg mb-4">Deskripsi</h3>
               <div className="prose prose-sm text-gray-600 leading-relaxed max-w-none">
                 <p>{product.description}</p>
@@ -381,13 +745,13 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
           </div>
 
           <div className="mt-6 flex gap-4">
-            <button className="flex-1 flex items-center justify-center gap-2 rounded-xl border-2 border-blue-600 bg-white px-4 py-3 text-sm font-bold text-blue-600 transition hover:bg-blue-50">
+            <button onClick={openContact} className="flex-1 flex items-center justify-center gap-2 rounded-xl border-2 border-blue-600 bg-white px-4 py-3 text-sm font-bold text-blue-600 transition hover:bg-blue-50">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
               Hubungi Penjual
             </button>
-            <button className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-bold text-gray-700 transition hover:bg-gray-50 hover:text-gray-900">
+            <button onClick={openContact} className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-bold text-gray-700 transition hover:bg-gray-50 hover:text-gray-900">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
-              Kunjungi Toko
+              Hubungi Penjual
             </button>
           </div>
         </div>
@@ -472,6 +836,91 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
         </div>
 
       </div>
+
+      {/* Checkout Toast */}
+      {checkoutToast && (
+        <div
+          className={`fixed top-5 right-5 z-[60] px-5 py-3 rounded-xl shadow-lg text-white text-sm font-semibold transition
+            ${checkoutToast.type === "success" ? "bg-green-500" : "bg-red-500"}`}
+        >
+          {checkoutToast.msg}
+        </div>
+      )}
+
+      {/* Checkout Modal */}
+      {isCheckoutOpen && product && (
+        <CheckoutModal
+          product={product}
+          onClose={() => setIsCheckoutOpen(false)}
+          onSuccess={handleCheckoutSuccess}
+        />
+      )}
+
+      {isContactPopupOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-slate-500">Hubungi Penjual</p>
+                <h2 className="text-xl font-bold text-slate-900">Media Kontak</h2>
+              </div>
+              <button
+                type="button"
+                onClick={closeContact}
+                className="text-2xl leading-none text-slate-400 hover:text-slate-600"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="mt-6 space-y-4">
+              {sellerWhatsApp ? (
+                <button
+                  type="button"
+                  onClick={openWhatsApp}
+                  className="w-full rounded-2xl bg-green-500 px-4 py-3 text-sm font-semibold text-white hover:bg-green-600 text-center"
+                >
+                  WhatsApp
+                </button>
+              ) : (
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 text-center">
+                  Nomor WhatsApp belum tersedia.
+                </div>
+              )}
+
+              {sellerSocialMedia.length > 0 ? (
+                <div className="space-y-3">
+                  {sellerSocialMedia.map((social, index) => (
+                    <a
+                      key={index}
+                      href={social.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-100 text-center"
+                    >
+                      {social.name}
+                    </a>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 text-center">
+                  Media sosial penjual belum tersedia.
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                type="button"
+                onClick={closeContact}
+                className="rounded-2xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
