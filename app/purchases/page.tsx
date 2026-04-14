@@ -6,6 +6,11 @@ import { usePathname } from "next/navigation";
 import SidebarProfile from "@/components/sidebar-profile";
 import { submitRefund, SubmitRefundPayload } from "@/services/refund";
 import api from "@/services/api";
+import {
+  createMidtransPayment,
+  loadMidtransSnap,
+  openMidtransSnap,
+} from "@/services/transaction";
 
 const BASE_URL = "http://127.0.0.1:8000";
 
@@ -375,6 +380,7 @@ export default function PurchasesPage() {
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmLoading, setConfirmLoading] = useState<number | null>(null);
+  const [paymentLoading, setPaymentLoading] = useState<number | null>(null);
 
   useEffect(() => {
     const userStr = localStorage.getItem("current_user");
@@ -439,6 +445,40 @@ export default function PurchasesPage() {
 
   const canConfirm = (t: ApiTransaction) =>
     ["shipped", "delivered"].includes(t.status);
+
+  const canPay = (t: ApiTransaction) =>
+    t.status === "pending" && t.type === "rekber";
+
+  const handlePayNow = async (t: ApiTransaction) => {
+    setPaymentLoading(t.id);
+    try {
+      const res = await createMidtransPayment(t.id);
+      if (res.success) {
+        await loadMidtransSnap(res.data.client_key, res.data.is_production);
+        openMidtransSnap(res.data.snap_token, {
+          onSuccess: () => {
+            showToast("Pembayaran berhasil! Pesanan sedang diproses.", "success");
+            fetchTransactions();
+          },
+          onPending: () => {
+            showToast("Pembayaran pending, menunggu konfirmasi.", "success");
+          },
+          onError: () => {
+            showToast("Pembayaran gagal. Silakan coba lagi.", "error");
+          },
+          onClose: () => {
+            // User menutup popup, tidak ada aksi
+          },
+        });
+      } else {
+        showToast("Gagal memuat halaman pembayaran.", "error");
+      }
+    } catch (err: any) {
+      showToast(err?.response?.data?.message ?? "Gagal membuka pembayaran.", "error");
+    } finally {
+      setPaymentLoading(null);
+    }
+  };
 
   const filtered = transactions.filter((t) =>
     filter === "all" ? true : t.status === filter
@@ -606,6 +646,11 @@ export default function PurchasesPage() {
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-teal-500" />
                         Mengkonfirmasi…
                       </div>
+                    ) : paymentLoading === t.id ? (
+                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500" />
+                        Memuat pembayaran…
+                      </div>
                     ) : t.status === "refund_requested" ? (
                       <Link
                         href="/purchases/refunds"
@@ -615,6 +660,16 @@ export default function PurchasesPage() {
                       </Link>
                     ) : (
                       <>
+                        {/* Bayar Sekarang — untuk rekber yang masih pending */}
+                        {canPay(t) && (
+                          <button
+                            id={`pay-btn-${t.id}`}
+                            onClick={() => handlePayNow(t)}
+                            className="text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl px-4 py-2 transition shadow-sm flex items-center gap-1.5"
+                          >
+                            💳 Bayar Sekarang
+                          </button>
+                        )}
                         {/* Konfirmasi Terima — untuk status shipped/delivered */}
                         {canConfirm(t) && (
                           <button
