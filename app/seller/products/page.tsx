@@ -4,7 +4,6 @@ import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { logout } from "@/services/authentication";
-import SidebarProfile from "@/components/sidebar-profile";
 import { getAuthHeader } from "@/lib/auth-utils";
 import { usePathname } from "next/navigation";
 
@@ -123,6 +122,10 @@ export default function SellerProducts() {
       try { setUser(JSON.parse(userStr)); } catch { /* ignore */ }
     }
 
+    const token = localStorage.getItem('auth_token');
+    if (!token) {
+      alert('Anda harus login terlebih dahulu!');
+    }
     fetchData();
   }, []);
 
@@ -130,11 +133,6 @@ export default function SellerProducts() {
     try {
       setLoading(true);
       const authHeader = getAuthHeader();
-      if (!authHeader) {
-        alert('Anda harus login terlebih dahulu!');
-        setLoading(false);
-        return;
-      }
 
       const [prodRes, catRes] = await Promise.all([
         fetch(`${BASE_URL}/my/products`, { headers: authHeader || {} }),
@@ -370,7 +368,25 @@ export default function SellerProducts() {
           </nav>
         </div>
 
-        <SidebarProfile user={user} />
+        {/* Profile */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center">
+              S
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-800">Seller Name</p>
+              <p className="text-xs text-blue-600 cursor-pointer">Lihat Profil</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={logout}
+            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+          >
+            Logout
+          </button>
+        </div>
       </div>
 
       {/* Main Content */}

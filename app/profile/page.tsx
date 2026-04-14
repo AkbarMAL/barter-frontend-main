@@ -117,45 +117,84 @@ export default function ProfilePage() {
   };
 
   const handleSaveProfile = async () => {
-    setIsSaving(true);
-    setError("");
-    setSuccess("");
+  setIsSaving(true);
+  setError("");
+  setSuccess("");
 
-    try {
-      const token = getAuthToken();
+  try {
+    const token = getAuthToken();
 
-      const response = await fetch("http://127.0.0.1:8000/api/v1/me", {
-        method: "PUT",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(formData),
+    // Filter social media
+    const filteredSocialMedia = formData.social_media
+      .filter((social) => social.name.trim() && social.url.trim())
+      .filter((social) => {
+        try {
+          new URL(social.url);
+          return true;
+        } catch {
+          return false;
+        }
       });
 
-      const json = await response.json();
-
-      if (json.success) {
-        setUser(json.data);
-        setSuccess("Profil berhasil diperbarui!");
-        setIsEditing(false);
-
-        // Update localStorage
-        localStorage.setItem("current_user", JSON.stringify(json.data));
-
-        // Reset success message after 3 seconds
-        setTimeout(() => setSuccess(""), 3000);
-      } else {
-        setError(json.message || "Gagal memperbarui profil");
-      }
-    } catch (err) {
-      console.error(err);
-      setError("Terjadi kesalahan saat menyimpan profil");
-    } finally {
+    if (!formData.name.trim()) {
+      setError("Nama lengkap tidak boleh kosong");
       setIsSaving(false);
+      return;
     }
-  };
+
+    const dataToSend: any = {};
+
+    if (formData.name.trim()) dataToSend.name = formData.name.trim();
+    if (formData.wa_number.trim()) dataToSend.wa_number = formData.wa_number.trim();
+    if (formData.bio.trim()) dataToSend.bio = formData.bio.trim();
+    if (formData.address.trim()) dataToSend.address = formData.address.trim();
+    if (formData.city.trim()) dataToSend.city = formData.city.trim();
+    if (formData.province.trim()) dataToSend.province = formData.province.trim();
+
+    if (filteredSocialMedia.length > 0) {
+      dataToSend.social_media = filteredSocialMedia;
+    }
+
+    console.log("FINAL PAYLOAD:", dataToSend);
+
+    const response = await fetch("http://127.0.0.1:8000/api/v1/me", {
+      method: "PUT",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(dataToSend),
+    });
+
+    const json = await response.json();
+    console.log("RESPONSE:", json);
+
+    if (!response.ok) {
+      if (json.errors) {
+        const errorMessages = Object.values(json.errors).flat().join(", ");
+        setError(errorMessages);
+      } else {
+        setError(json.message || "Terjadi kesalahan");
+      }
+      return;
+    }
+
+    setUser(json.data);
+    setSuccess("Profil berhasil diperbarui!");
+    setIsEditing(false);
+
+    localStorage.setItem("current_user", JSON.stringify(json.data));
+
+    setTimeout(() => setSuccess(""), 3000);
+
+  } catch (err) {
+    console.error(err);
+    setError("Terjadi kesalahan saat menyimpan profil");
+  } finally {
+    setIsSaving(false);
+  }
+};
 
   const handleCancel = () => {
     setIsEditing(false);
@@ -452,7 +491,7 @@ export default function ProfilePage() {
                     Nomor WhatsApp
                   </label>
                   <input
-                    type="number"
+                    type="text"
                     name="wa_number"
                     value={formData.wa_number}
                     onChange={handleInputChange}
