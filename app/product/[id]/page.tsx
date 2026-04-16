@@ -9,8 +9,7 @@ import { HeartIcon as HeartSolid, StarIcon, MapPinIcon } from "@heroicons/react/
 import {
   createTransaction,
   createMidtransPayment,
-  loadMidtransSnap,
-  openMidtransSnap,
+  openSeamlessPayment,
 } from "@/services/transaction";
 
 const BASE_URL = "http://127.0.0.1:8000/api/v1";
@@ -331,33 +330,17 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
         return;
       }
 
-      // Rekber: generate Midtrans Snap token
+      // Rekber: redirect ke halaman pembayaran Midtrans
       try {
         showCheckoutToast("Memuat halaman pembayaran...", "success");
         const payRes = await createMidtransPayment(transactionId);
-        if (payRes.success) {
-          await loadMidtransSnap(payRes.data.client_key, payRes.data.is_production);
-          openMidtransSnap(payRes.data.snap_token, {
-            onSuccess: () => {
-              showCheckoutToast("Pembayaran berhasil!", "success");
-              setTimeout(() => router.push("/purchases"), 1500);
-            },
-            onPending: () => {
-              router.push(`/purchases/payment/${transactionId}`);
-            },
-            onError: () => {
-              showCheckoutToast("Pembayaran gagal. Coba lagi di halaman Pembelian.", "error");
-              setTimeout(() => router.push(`/purchases/payment/${transactionId}`), 2000);
-            },
-            onClose: () => {
-              router.push(`/purchases/payment/${transactionId}`);
-            },
-          });
+        if (payRes.success && payRes.data?.redirect_url) {
+          window.location.href = payRes.data.redirect_url;
         } else {
-          router.push(`/purchases/payment/${transactionId}`);
+          router.push("/purchases");
         }
       } catch {
-        router.push(`/purchases/payment/${transactionId}`);
+        router.push("/purchases");
       }
     },
     [router, showCheckoutToast]

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { logout } from "@/services/authentication";
 import api from "@/services/api";
 import { usePathname } from "next/navigation";
+import SidebarProfile from "@/components/sidebar-profile";
 
 interface NotificationItem {
   id: number;
@@ -32,8 +33,14 @@ export default function NotificationsPage() {
   const pathname = usePathname();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
+    const userStr = localStorage.getItem("current_user");
+    if (userStr) {
+      try { setUser(JSON.parse(userStr)); } catch { /* ignore */ }
+    }
+
     const fetchNotifications = async () => {
       try {
         const res = await api.get("/notifications");
@@ -105,24 +112,7 @@ export default function NotificationsPage() {
         </nav>
       </div>
 
-      <div className="space-y-3 pb-4">
-        <div className="flex items-center gap-3 px-2">
-          <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold shadow-sm">
-            U
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-gray-800 leading-tight">Pembeli</p>
-            <p className="text-xs text-blue-600 cursor-pointer mt-0.5 hover:underline">Lihat Profil</p>
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={logout}
-          className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-gray-300 hover:bg-gray-50 shadow-sm"
-        >
-          Logout
-        </button>
-      </div>
+      <SidebarProfile user={user} />
     </div>
 
     <div className="flex-1 md:ml-64 pt-4 pb-8 px-6 lg:px-8 bg-gray-50 min-h-screen">
