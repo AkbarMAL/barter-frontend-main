@@ -163,7 +163,7 @@ export default function FavoritesPage() {
             <nav className="mt-8 space-y-2">
               {[
                 { name: "Beranda", href: "/" },
-                { name: "Notifikasi", href: "/notifications", badge: 3 },
+                { name: "Notifikasi", href: "/notifications" },
                 { name: "Favorit", href: "/favorites" },
                 { name: "Pembelian", href: "/purchases" },
                 { name: "Pindah ke seller", href: "/seller" },
@@ -178,12 +178,6 @@ export default function FavoritesPage() {
                     }`}
                 >
                   <span>{item.name}</span>
-
-                  {item.badge && (
-                    <span className="bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full font-bold">
-                      {item.badge}
-                    </span>
-                  )}
                 </Link>
               ))}
             </nav>

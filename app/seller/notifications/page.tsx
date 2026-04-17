@@ -4,11 +4,11 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import api from "@/services/api";
-import SidebarProfile from "@/components/sidebar-profile";
 import { ProtectedRoute } from "@/components/protected-route";
+import SidebarProfile from "@/components/sidebar-profile";
 
 interface NotificationItem {
-  id: number;
+  id: number | string;
   title: string;
   description: string;
   date: string;
@@ -20,18 +20,35 @@ interface NotificationItem {
 const mapNotificationResponse = (item: any): NotificationItem => {
   const data = item.data ?? {};
 
+  const createdAt =
+    item.created_at ||
+    item.createdAt ||
+    item.updated_at ||
+    item.updatedAt ||
+    "";
+
   return {
-    id: item.id,
+    id: item.id ?? data.id ?? "",
     title: data.title || "Notifikasi baru",
     description: data.message || "",
-    date: item.created_at || item.createdAt || "",
-    unread: item.read_at === null, // ✅ fix Laravel
+    date: createdAt,
+    unread: item.read_at === null, // standar Laravel
     actionUrl: data.action_url,
     type: data.type,
   };
 };
 
-export default function NotificationsPage() {
+const sellerMenus = [
+  { name: "Dashboard", href: "/seller" },
+  { name: "Produk", href: "/seller/products" },
+  { name: "Transaksi", href: "/seller/transactions" },
+  { name: "Refunds", href: "/seller/refunds" },
+  { name: "Wallet", href: "/seller/wallet" },
+  { name: "Notifikasi", href: "/seller/notifications" },
+  { name: "Pindah ke halaman pembeli", href: "/" },
+];
+
+export default function SellerNotificationPage() {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -40,11 +57,13 @@ export default function NotificationsPage() {
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    const userStr = localStorage.getItem("current_user");
-    if (userStr) {
+    const storedUser = localStorage.getItem("current_user");
+    if (storedUser) {
       try {
-        setUser(JSON.parse(userStr));
-      } catch {}
+        setUser(JSON.parse(storedUser));
+      } catch {
+        setUser(null);
+      }
     }
 
     const fetchNotifications = async () => {
@@ -59,10 +78,10 @@ export default function NotificationsPage() {
           : [];
 
         setNotifications(
-          notificationsData.map(mapNotificationResponse)
+          notificationsData.map(mapNotificationResponse),
         );
-      } catch (err) {
-        console.error("Gagal memuat notifikasi:", err);
+      } catch (error: any) {
+        console.error("Gagal memuat notifikasi:", error);
         setNotifications([]);
       } finally {
         setLoading(false);
@@ -74,57 +93,73 @@ export default function NotificationsPage() {
 
   const markAllRead = () => {
     setNotifications((prev) =>
-      prev.map((item) => ({ ...item, unread: false }))
+      prev.map((item) => ({ ...item, unread: false })),
     );
+
+    // TODO: nanti bisa sambungkan ke API
+    // await api.post("/notifications/mark-all-read");
   };
 
-  const toggleRead = (id: number) => {
+  const toggleRead = (id: number | string) => {
     setNotifications((prev) =>
       prev.map((item) =>
-        item.id === id ? { ...item, unread: !item.unread } : item
-      )
+        item.id === id ? { ...item, unread: !item.unread } : item,
+      ),
     );
+
+    // TODO: API
+    // await api.post(`/notifications/${id}/toggle-read`);
   };
 
   const handleClickNotification = (item: NotificationItem) => {
+    // tandai sudah dibaca
     if (item.unread) {
       toggleRead(item.id);
     }
 
+    // redirect kalau ada action_url
     if (item.actionUrl) {
       router.push(item.actionUrl);
     }
   };
 
+  const isActive = (href: string) => {
+    if (href === "/seller/notifications") {
+      return pathname === "/seller/notifications";
+    }
+    return pathname === href;
+  };
+
   const unreadCount = notifications.filter((item) => item.unread).length;
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute requiredRole="seller">
       <div className="flex min-h-screen w-full bg-white font-sans">
-        
         {/* Sidebar */}
         <div className="w-64 bg-white border-r p-4 hidden md:flex flex-col justify-between fixed h-screen z-10">
           <div>
-            <h1 className="text-2xl font-bold text-blue-500 tracking-wide">RatheR</h1>
+            <h1 className="text-2xl font-bold text-blue-500 tracking-wide">
+              RatheR
+            </h1>
 
             <nav className="mt-8 space-y-2">
-              {[
-                { name: "Beranda", href: "/" },
-                { name: "Notifikasi", href: "/notifications" },
-                { name: "Favorit", href: "/favorites" },
-                { name: "Pembelian", href: "/purchases" },
-                { name: "Pindah ke seller", href: "/seller" },
-              ].map((item) => (
+              {sellerMenus.map((item) => (
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium transition
-                    ${pathname === item.href
+                  className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium transition ${
+                    isActive(item.href)
                       ? "bg-blue-50 text-blue-600"
                       : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                    }`}
+                  }`}
                 >
                   <span>{item.name}</span>
+
+                  {item.name === "Notifikasi" && unreadCount > 0 && (
+                    <span className="bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full font-bold">
+                      {unreadCount}
+                    </span>
+                  )}
                 </Link>
               ))}
             </nav>
@@ -136,13 +171,14 @@ export default function NotificationsPage() {
         {/* Content */}
         <div className="flex-1 md:ml-64 pt-4 pb-8 px-6 lg:px-8 bg-gray-50 min-h-screen">
           <div className="max-w-7xl mx-auto space-y-6">
-
             {/* Header */}
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Notifikasi</h1>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  Notifikasi Penjual
+                </h1>
                 <p className="mt-2 text-sm text-gray-600">
-                  Semua pemberitahuan terbaru untuk akun pembeli Anda.
+                  Semua notifikasi terbaru untuk akun penjual Anda.
                 </p>
               </div>
 
@@ -168,9 +204,11 @@ export default function NotificationsPage() {
                 </div>
               ) : notifications.length === 0 ? (
                 <div className="rounded-3xl border border-dashed p-10 text-center">
-                  <p className="text-lg font-semibold">Tidak ada notifikasi</p>
+                  <p className="text-lg font-semibold">
+                    Tidak ada notifikasi
+                  </p>
                   <p className="mt-2 text-sm text-gray-600">
-                    Kunjungi beranda untuk menemukan produk terbaru.
+                    Periksa kembali nanti.
                   </p>
                 </div>
               ) : (
@@ -187,7 +225,9 @@ export default function NotificationsPage() {
                     <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                       <div>
                         <div className="flex items-center gap-2">
-                          <h2 className="text-lg font-semibold">{item.title}</h2>
+                          <h2 className="text-lg font-semibold">
+                            {item.title}
+                          </h2>
 
                           {item.unread && (
                             <span className="bg-orange-500 text-white text-[11px] px-2 py-0.5 rounded-full font-bold">
@@ -221,7 +261,6 @@ export default function NotificationsPage() {
                 ))
               )}
             </div>
-
           </div>
         </div>
       </div>
