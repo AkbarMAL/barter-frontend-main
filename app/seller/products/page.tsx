@@ -7,6 +7,7 @@ import { logout } from "@/services/authentication";
 import { getAuthHeader } from "@/lib/auth-utils";
 import { usePathname } from "next/navigation";
 import { ProtectedRoute } from "@/components/protected-route";
+import SidebarProfile from "@/components/sidebar-profile";
 
 const BASE_URL = "http://127.0.0.1:8000/api/v1";
 
@@ -419,375 +420,343 @@ export default function SellerProducts() {
   return (
     <ProtectedRoute requiredRole="seller">
       <div className="flex min-h-screen w-full bg-white">
-      {/* Sidebar */}
-      <div className="w-64 bg-white border-r p-4 flex flex-col justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-blue-500" style={{ letterSpacing: '2px' }}>Rather&apos;s</h1>
-          <p className="text-sm text-gray-500 mb-4">Seller Dashboard</p>
+        {/* Sidebar */}
+        <div className="w-64 bg-white border-r p-4 flex flex-col justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-blue-500" style={{ letterSpacing: '2px' }}>Rather&apos;s</h1>
+            <p className="text-sm text-gray-500 mb-4">Seller Dashboard</p>
 
-          <nav className="mt-6 space-y-2">
-            {sellerMenus.map((item) => (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition
-                  ${pathname === item.href
-                    ? "bg-blue-100 text-blue-600"
-                    : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-                  }`}
-              >
-                <span>{item.name}</span>
-              </Link>
-            ))}
-          </nav>
+            <nav className="mt-6 space-y-2">
+              {sellerMenus.map((item) => (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition
+                    ${pathname === item.href
+                      ? "bg-blue-100 text-blue-600"
+                      : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                    }`}
+                >
+                  <span>{item.name}</span>
+                </Link>
+              ))}
+            </nav>
+          </div>
+
+          <SidebarProfile user={user} />
         </div>
 
-        {/* Profile */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-full border-4 border-white shadow-lg overflow-hidden bg-white">
-              {user?.avatar ? (
-                <Image
-                  src={user?.avatar || ""}
-                  alt={user?.name || "User"}
-                  width={80}
-                  height={80}
-                  unoptimized
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center font-bold text-2xl text-blue-600">
-                  {user?.name?.substring(0, 2).toUpperCase() || "U"}
-                </div>
-              )}
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-800">
-                {user?.name || "Seller Name"}
-              </p>              <p className="text-xs text-blue-600 cursor-pointer">Lihat Profil</p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={logout}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
-          >
-            Logout
-          </button>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 p-6 overflow-y-auto bg-gray-50">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-primary">Kelola Produk</h1>
-          <button
-            onClick={handleAddProduct}
-            className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600"
-          >
-            Tambah Produk
-          </button>
-        </div>
-
-        {/* Loading */}
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[1, 2, 3].map((item) => (
-              <div key={item} className="animate-pulse rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                <div className="h-32 w-full rounded-lg bg-slate-200" />
-                <div className="mt-4 h-4 w-3/4 rounded-full bg-slate-200" />
-                <div className="mt-3 h-4 w-1/2 rounded-full bg-slate-200" />
-                <div className="mt-4 flex items-center justify-between gap-2">
-                  <div className="h-9 w-24 rounded-full bg-slate-200" />
-                  <div className="h-9 w-24 rounded-full bg-slate-200" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : products.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm">
-            <p className="text-lg font-semibold text-primary">Belum ada produk</p>
-            <p className="mt-2 text-sm text-slate-500">Tambahkan produk pertama kamu dengan tombol Tambah Produk.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 justify-items-center">
-            {products.map((p) => (
-              <div key={p.id} className="flex h-[350px] w-full max-w-[300px] flex-col overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-lg">
-                <div className="relative h-48 w-full overflow-hidden bg-slate-100">
-                  <Image
-                    src={getImage(p)}
-                    fill
-                    alt={p.title}
-                    unoptimized
-                    className="object-cover"
-                  />
-                </div>
-                <div className="flex flex-1 flex-col gap-3 p-5">
-                  <div>
-                    <h3 className="text-lg font-semibold text-primary line-clamp-2">{p.title}</h3>
-                    <p className="mt-2 text-blue-600 text-lg font-bold">Rp {Number(p.price).toLocaleString("id-ID")}</p>
-                  </div>
-                  <div className="space-y-1 text-sm text-slate-600">
-                    <p>Stock: <span className="font-medium text-slate-900">{p.stock}</span></p>
-                    <p>Status: <span className="font-medium text-slate-900">{p.status || 'active'}</span></p>
-                  </div>
-                  <div className="mt-auto flex gap-3">
-                    <button
-                      onClick={() => handleEditProduct(p)}
-                      className="flex-1 rounded-2xl bg-amber-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-amber-600"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDeleteProduct(p.id)}
-                      className="flex-1 rounded-2xl bg-rose-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-rose-600"
-                    >
-                      Hapus
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-        {modalOpen && (
-          <div
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-            onClick={() => setModalOpen(false)}
-          >
-            <div
-              className="relative bg-white p-6 rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
+        {/* Main Content */}
+        <div className="flex-1 p-6 overflow-y-auto bg-gray-50">
+          <div className="flex justify-between items-center mb-6">
+            <h1 className="text-2xl font-bold text-primary">Kelola Produk</h1>
+            <button
+              onClick={handleAddProduct}
+              className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600"
             >
-              <button
-                type="button"
-                onClick={() => setModalOpen(false)}
-                className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200"
-              >
-                ×
-              </button>
-              <h2 className="text-xl font-bold text-blue-500 mb-4">
-                {editingProduct ? 'Edit Produk' : 'Tambah Produk'}
-              </h2>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-primary">Judul</label>
-                  <input
-                    type="text"
-                    value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    className="w-full p-2 border rounded text-primary"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-primary">Deskripsi</label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="w-full p-2 border rounded text-primary"
-                    rows={3}
-                    required
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-primary">Harga</label>
-                    <input
-                      type="number"
-                      value={formData.price}
-                      onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                      className="w-full p-2 border rounded text-primary"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-primary">Stock</label>
-                    <input
-                      type="number"
-                      value={formData.stock}
-                      onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-                      className="w-full p-2 border rounded text-primary"
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-primary">Kondisi</label>
-                    <select
-                      value={formData.condition}
-                      onChange={(e) => setFormData({ ...formData, condition: e.target.value })}
-                      className="w-full p-2 border rounded text-primary"
-                    >
-                      <option value="new">Baru</option>
-                      <option value="used">Bekas</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-primary">Tipe Transaksi</label>
-                    <select
-                      value={formData.transaction_type}
-                      onChange={(e) => setFormData({ ...formData, transaction_type: e.target.value })}
-                      className="w-full p-2 border rounded text-primary"
-                    >
-                      <option value="cod">COD</option>
-                      <option value="rekber">Rekber</option>
-                      <option value="both">Keduanya</option>
-                    </select>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-primary">Kategori</label>
-                  <select
-                    value={formData.category_id}
-                    onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-                    className="w-full p-2 border rounded text-primary"
-                    required
-                  >
-                    <option value="">Pilih Kategori</option>
-                    {categories.map((cat) => (
-                      <option key={cat.id} value={cat.id}>{cat.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-primary">Lokasi</label>
-                  <input
-                    type="text"
-                    value={formData.location}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      location: e.target.value,
-                      location_id: '',
-                      latitude: '',
-                      longitude: '',
-                    })}
-                    className="w-full p-2 border rounded text-primary"
-                    placeholder="Cari lokasi..."
-                    required
-                  />
-                  {locationLoading && (
-                    <p className="mt-2 text-sm text-slate-500">Mencari lokasi...</p>
-                  )}
-                  {locationSuggestions.length > 0 && formData.location.trim().length >= 2 && (
-                    <div className="mt-2 max-h-52 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-sm">
-                      {locationSuggestions.map((item) => (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => {
-                            setFormData((prev) => ({
-                              ...prev,
-                              location: item.label,
-                              location_id: item.id,
-                              latitude: String(item.latitude),
-                              longitude: String(item.longitude),
-                            }));
-                            setLocationSuggestions([]);
-                          }}
-                          className="w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100"
-                        >
-                          <span className="block font-medium">{item.label}</span>
-                          <span className="block text-xs text-slate-500">{item.description}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-primary">Gambar (max 5)</label>
-                  <div
-                    className={`mt-2 flex h-36 w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed bg-white text-center transition ${dragActive ? 'border-blue-400 bg-blue-50' : 'border-slate-300 hover:border-blue-300'}`}
-                    onDragEnter={handleDrag}
-                    onDragOver={handleDrag}
-                    onDragLeave={handleDrag}
-                    onDrop={handleImageDrop}
-                    onClick={() => document.getElementById('product-image-input')?.click()}
-                  >
-                    <input
-                      id="product-image-input"
-                      type="file"
-                      multiple
-                      accept="image/*"
-                      onChange={handleImageInput}
-                      className="hidden"
-                    />
-                    <div className="pointer-events-none">
-                      <p className="text-sm font-medium text-primary">Tarik atau pilih gambar di sini</p>
-                      <p className="text-xs text-slate-500">Bisa tambah satu per satu, maksimal 5 gambar</p>
-                      <p className="text-xs text-slate-400">{formData.images.length} / 5</p>
-                    </div>
-                  </div>
-
-                  {(existingImages.length > 0 || formData.images.length > 0) && (
-                    <div className="grid grid-cols-3 gap-3 mt-4">
-                      {existingImages.map((image, index) => (
-                        <div key={`existing-${index}`} className="relative overflow-hidden rounded-xl border bg-white shadow-sm">
-                          <img
-                            src={resolveImageUrl(image.image_path)}
-                            alt={`existing-preview-${index}`}
-                            className="h-24 w-full object-cover"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => removeExistingImage(index)}
-                            className="absolute right-1 top-1 inline-flex h-7 w-7 items-center justify-center rounded-full bg-white text-sm text-red-600 shadow-sm hover:bg-red-50"
-                          >
-                            ×
-                          </button>
-                        </div>
-                      ))}
-                      {formData.images.map((file, index) => (
-                        <div key={`new-${index}`} className="relative overflow-hidden rounded-xl border bg-white shadow-sm">
-                          <img
-                            src={URL.createObjectURL(file)}
-                            alt={`preview-${index}`}
-                            className="h-24 w-full object-cover"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => removeImage(index)}
-                            className="absolute right-1 top-1 inline-flex h-7 w-7 items-center justify-center rounded-full bg-white text-sm text-red-600 shadow-sm hover:bg-red-50"
-                          >
-                            ×
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-primary">Tags (pisahkan dengan koma)</label>
-                  <input
-                    type="text"
-                    value={formData.tags.join(', ')}
-                    onChange={(e) => setFormData({ ...formData, tags: e.target.value.split(',').map(t => t.trim()) })}
-                    className="w-full p-2 border rounded text-primary"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    type="submit"
-                    disabled={submitLoading}
-                    className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {submitLoading ? 'Menyimpan...' : 'Simpan'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setModalOpen(false)}
-                    className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
-                  >
-                    Batal
-                  </button>
-                </div>
-              </form>
-            </div>
+              Tambah Produk
+            </button>
           </div>
-        )}
+
+          {/* Loading */}
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[1, 2, 3].map((item) => (
+                <div key={item} className="animate-pulse rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <div className="h-32 w-full rounded-lg bg-slate-200" />
+                  <div className="mt-4 h-4 w-3/4 rounded-full bg-slate-200" />
+                  <div className="mt-3 h-4 w-1/2 rounded-full bg-slate-200" />
+                  <div className="mt-4 flex items-center justify-between gap-2">
+                    <div className="h-9 w-24 rounded-full bg-slate-200" />
+                    <div className="h-9 w-24 rounded-full bg-slate-200" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : products.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm">
+              <p className="text-lg font-semibold text-primary">Belum ada produk</p>
+              <p className="mt-2 text-sm text-slate-500">Tambahkan produk pertama kamu dengan tombol Tambah Produk.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 justify-items-center">
+              {products.map((p) => (
+                <div key={p.id} className="flex h-[350px] w-full max-w-[300px] flex-col overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-lg">
+                  <div className="relative h-48 w-full overflow-hidden bg-slate-100">
+                    <Image
+                      src={getImage(p)}
+                      fill
+                      alt={p.title}
+                      unoptimized
+                      className="object-cover"
+                    />
+                  </div>
+                  <div className="flex flex-1 flex-col gap-3 p-5">
+                    <div>
+                      <h3 className="text-lg font-semibold text-primary line-clamp-2">{p.title}</h3>
+                      <p className="mt-2 text-blue-600 text-lg font-bold">Rp {Number(p.price).toLocaleString("id-ID")}</p>
+                    </div>
+                    <div className="space-y-1 text-sm text-slate-600">
+                      <p>Stock: <span className="font-medium text-slate-900">{p.stock}</span></p>
+                      <p>Status: <span className="font-medium text-slate-900">{p.status || 'active'}</span></p>
+                    </div>
+                    <div className="mt-auto flex gap-3">
+                      <button
+                        onClick={() => handleEditProduct(p)}
+                        className="flex-1 rounded-2xl bg-amber-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-amber-600"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteProduct(p.id)}
+                        className="flex-1 rounded-2xl bg-rose-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-rose-600"
+                      >
+                        Hapus
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {modalOpen && (
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+              onClick={() => setModalOpen(false)}
+            >
+              <div
+                className="relative bg-white p-6 rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button
+                  type="button"
+                  onClick={() => setModalOpen(false)}
+                  className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200"
+                >
+                  ×
+                </button>
+                <h2 className="text-xl font-bold text-blue-500 mb-4">
+                  {editingProduct ? 'Edit Produk' : 'Tambah Produk'}
+                </h2>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-primary">Judul</label>
+                    <input
+                      type="text"
+                      value={formData.title}
+                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      className="w-full p-2 border rounded text-primary"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-primary">Deskripsi</label>
+                    <textarea
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      className="w-full p-2 border rounded text-primary"
+                      rows={3}
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-primary">Harga</label>
+                      <input
+                        type="number"
+                        value={formData.price}
+                        onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                        className="w-full p-2 border rounded text-primary"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-primary">Stock</label>
+                      <input
+                        type="number"
+                        value={formData.stock}
+                        onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
+                        className="w-full p-2 border rounded text-primary"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-primary">Kondisi</label>
+                      <select
+                        value={formData.condition}
+                        onChange={(e) => setFormData({ ...formData, condition: e.target.value })}
+                        className="w-full p-2 border rounded text-primary"
+                      >
+                        <option value="new">Baru</option>
+                        <option value="used">Bekas</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-primary">Tipe Transaksi</label>
+                      <select
+                        value={formData.transaction_type}
+                        onChange={(e) => setFormData({ ...formData, transaction_type: e.target.value })}
+                        className="w-full p-2 border rounded text-primary"
+                      >
+                        <option value="cod">COD</option>
+                        <option value="rekber">Rekber</option>
+                        <option value="both">Keduanya</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-primary">Kategori</label>
+                    <select
+                      value={formData.category_id}
+                      onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
+                      className="w-full p-2 border rounded text-primary"
+                      required
+                    >
+                      <option value="">Pilih Kategori</option>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-primary">Lokasi</label>
+                    <input
+                      type="text"
+                      value={formData.location}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        location: e.target.value,
+                        location_id: '',
+                        latitude: '',
+                        longitude: '',
+                      })}
+                      className="w-full p-2 border rounded text-primary"
+                      placeholder="Cari lokasi..."
+                      required
+                    />
+                    {locationLoading && (
+                      <p className="mt-2 text-sm text-slate-500">Mencari lokasi...</p>
+                    )}
+                    {locationSuggestions.length > 0 && formData.location.trim().length >= 2 && (
+                      <div className="mt-2 max-h-52 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+                        {locationSuggestions.map((item) => (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => {
+                              setFormData((prev) => ({
+                                ...prev,
+                                location: item.label,
+                                location_id: item.id,
+                                latitude: String(item.latitude),
+                                longitude: String(item.longitude),
+                              }));
+                              setLocationSuggestions([]);
+                            }}
+                            className="w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100"
+                          >
+                            <span className="block font-medium">{item.label}</span>
+                            <span className="block text-xs text-slate-500">{item.description}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-primary">Gambar (max 5)</label>
+                    <div
+                      className={`mt-2 flex h-36 w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed bg-white text-center transition ${dragActive ? 'border-blue-400 bg-blue-50' : 'border-slate-300 hover:border-blue-300'}`}
+                      onDragEnter={handleDrag}
+                      onDragOver={handleDrag}
+                      onDragLeave={handleDrag}
+                      onDrop={handleImageDrop}
+                      onClick={() => document.getElementById('product-image-input')?.click()}
+                    >
+                      <input
+                        id="product-image-input"
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        onChange={handleImageInput}
+                        className="hidden"
+                      />
+                      <div className="pointer-events-none">
+                        <p className="text-sm font-medium text-primary">Tarik atau pilih gambar di sini</p>
+                        <p className="text-xs text-slate-500">Bisa tambah satu per satu, maksimal 5 gambar</p>
+                        <p className="text-xs text-slate-400">{formData.images.length} / 5</p>
+                      </div>
+                    </div>
+
+                    {(existingImages.length > 0 || formData.images.length > 0) && (
+                      <div className="grid grid-cols-3 gap-3 mt-4">
+                        {existingImages.map((image, index) => (
+                          <div key={`existing-${index}`} className="relative overflow-hidden rounded-xl border bg-white shadow-sm">
+                            <img
+                              src={resolveImageUrl(image.image_path)}
+                              alt={`existing-preview-${index}`}
+                              className="h-24 w-full object-cover"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeExistingImage(index)}
+                              className="absolute right-1 top-1 inline-flex h-7 w-7 items-center justify-center rounded-full bg-white text-sm text-red-600 shadow-sm hover:bg-red-50"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                        {formData.images.map((file, index) => (
+                          <div key={`new-${index}`} className="relative overflow-hidden rounded-xl border bg-white shadow-sm">
+                            <img
+                              src={URL.createObjectURL(file)}
+                              alt={`preview-${index}`}
+                              className="h-24 w-full object-cover"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeImage(index)}
+                              className="absolute right-1 top-1 inline-flex h-7 w-7 items-center justify-center rounded-full bg-white text-sm text-red-600 shadow-sm hover:bg-red-50"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-primary">Tags (pisahkan dengan koma)</label>
+                    <input
+                      type="text"
+                      value={formData.tags.join(', ')}
+                      onChange={(e) => setFormData({ ...formData, tags: e.target.value.split(',').map(t => t.trim()) })}
+                      className="w-full p-2 border rounded text-primary"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="submit"
+                      disabled={submitLoading}
+                      className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {submitLoading ? 'Menyimpan...' : 'Simpan'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setModalOpen(false)}
+                      className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+                    >
+                      Batal
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
         </div>
       </div>
-    </ProtectedRoute>
+    </ProtectedRoute >
   );
 }
