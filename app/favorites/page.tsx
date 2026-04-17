@@ -7,6 +7,7 @@ import { HeartIcon as HeartIconSolid, StarIcon } from "@heroicons/react/24/solid
 import { logout } from "@/services/authentication";
 import SidebarProfile from "@/components/sidebar-profile";
 import { usePathname } from "next/navigation";
+import { ProtectedRoute } from "@/components/protected-route";
 
 const BASE_URL = "http://127.0.0.1:8000/api/v1";
 
@@ -152,128 +153,130 @@ export default function FavoritesPage() {
   };
 
   return (
-    <div className="flex min-h-screen w-full bg-white font-sans">
-      {/* Sidebar */}
-      <div className="w-64 bg-white border-r p-4 hidden md:flex flex-col justify-between fixed h-screen z-10">
-        <div>
-          <h1 className="text-2xl font-bold text-blue-500 tracking-wide">RatheR</h1>
+    <ProtectedRoute>
+      <div className="flex min-h-screen w-full bg-white font-sans">
+        {/* Sidebar */}
+        <div className="w-64 bg-white border-r p-4 hidden md:flex flex-col justify-between fixed h-screen z-10">
+          <div>
+            <h1 className="text-2xl font-bold text-blue-500 tracking-wide">RatheR</h1>
 
-          <nav className="mt-8 space-y-2">
-            {[
-              { name: "Beranda", href: "/" },
-              { name: "Notifikasi", href: "/notifications", badge: 3 },
-              { name: "Favorit", href: "/favorites" },
-              { name: "Pembelian", href: "/purchases" },
-              { name: "Pindah ke seller", href: "/seller" },
-            ].map((item) => (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium transition-colors
-                  ${pathname === item.href
-                    ? "bg-blue-50 text-blue-600"
-                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                  }`}
-              >
-                <span>{item.name}</span>
-
-                {item.badge && (
-                  <span className="bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full font-bold">
-                    {item.badge}
-                  </span>
-                )}
-              </Link>
-            ))}
-          </nav>
-        </div>
-
-        <SidebarProfile user={user} />
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 md:ml-64 p-6 lg:p-8 overflow-y-auto bg-gray-50 min-h-screen">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Barang Favorit</h1>
-          <p className="text-sm text-gray-500 mt-1">Kelola barang-barang yang telah Anda bookmark</p>
-        </div>
-
-        {loading ? (
-          <div className="flex justify-center items-center py-20">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          </div>
-        ) : favorites.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 bg-white rounded-2xl border border-gray-100 shadow-sm text-center">
-            <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-4">
-              <HeartIconSolid className="w-8 h-8 text-blue-300" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-800 mb-2">Belum ada barang di favorit</h3>
-            <p className="text-sm text-gray-500 max-w-sm">Anda belum menambahkan produk apapun. Yuk temukan barang-barang menarik di Beranda!</p>
-            <Link 
-              href="/"
-              className="mt-6 px-6 py-2.5 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 transition shadow-sm"
-            >
-              Mulai Eksplorasi
-            </Link>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-            {favorites.map((fav) => {
-              const p = fav.product;
-              return (
+            <nav className="mt-8 space-y-2">
+              {[
+                { name: "Beranda", href: "/" },
+                { name: "Notifikasi", href: "/notifications", badge: 3 },
+                { name: "Favorit", href: "/favorites" },
+                { name: "Pembelian", href: "/purchases" },
+                { name: "Pindah ke seller", href: "/seller" },
+              ].map((item) => (
                 <Link
-                  key={fav.id}
-                  href={`/product/${p.id}`}
-                  className="group rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col"
+                  key={item.name}
+                  href={item.href}
+                  className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium transition-colors
+                    ${pathname === item.href
+                      ? "bg-blue-50 text-blue-600"
+                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                    }`}
                 >
-                  <div className="relative aspect-[4/3] w-full bg-gray-100 overflow-hidden">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={getImage(p)}
-                      alt={p.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
+                  <span>{item.name}</span>
 
-                    <button
-                      onClick={(e) => removeFavorite(e, p.id)}
-                      className="absolute top-3 right-3 p-2 bg-white shadow-md rounded-full transition-transform hover:scale-110 z-10"
-                      title="Hapus dari favorit"
-                    >
-                      <HeartIconSolid className="w-5 h-5 text-red-500" />
-                    </button>
-                  </div>
-
-                  <div className="p-4 flex flex-col flex-grow justify-between">
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-900 line-clamp-2 leading-snug group-hover:text-blue-600 transition-colors">
-                        {p.title}
-                      </h3>
-                      <p className="text-lg font-bold text-blue-600 mt-2">
-                        Rp {Number(p.price).toLocaleString("id-ID")}
-                      </p>
-                    </div>
-                    
-                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50">
-                      <div className="flex items-center text-xs text-gray-500">
-                        <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                        {p.location || p.seller?.profile?.city || "Unknown"}
-                      </div>
-                      {(p.rating || p.rating! > 0) && (
-                        <div className="flex items-center text-xs font-semibold text-gray-700">
-                           <StarIcon className="w-3.5 h-3.5 text-yellow-400 mr-1" />
-                           {p.rating}
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  {item.badge && (
+                    <span className="bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full font-bold">
+                      {item.badge}
+                    </span>
+                  )}
                 </Link>
-              );
-            })}
+              ))}
+            </nav>
           </div>
-        )}
+
+          <SidebarProfile user={user} />
+        </div>
+
+        {/* Main Content */}
+        <div className="flex-1 md:ml-64 p-6 lg:p-8 overflow-y-auto bg-gray-50 min-h-screen">
+          <div className="mb-8">
+            <h1 className="text-2xl font-bold text-gray-900">Barang Favorit</h1>
+            <p className="text-sm text-gray-500 mt-1">Kelola barang-barang yang telah Anda bookmark</p>
+          </div>
+
+          {loading ? (
+            <div className="flex justify-center items-center py-20">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          ) : favorites.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-24 bg-white rounded-2xl border border-gray-100 shadow-sm text-center">
+              <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-4">
+                <HeartIconSolid className="w-8 h-8 text-blue-300" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">Belum ada barang di favorit</h3>
+              <p className="text-sm text-gray-500 max-w-sm">Anda belum menambahkan produk apapun. Yuk temukan barang-barang menarik di Beranda!</p>
+              <Link 
+                href="/"
+                className="mt-6 px-6 py-2.5 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 transition shadow-sm"
+              >
+                Mulai Eksplorasi
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+              {favorites.map((fav) => {
+                const p = fav.product;
+                return (
+                  <Link
+                    key={fav.id}
+                    href={`/product/${p.id}`}
+                    className="group rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col"
+                  >
+                    <div className="relative aspect-[4/3] w-full bg-gray-100 overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={getImage(p)}
+                        alt={p.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+
+                      <button
+                        onClick={(e) => removeFavorite(e, p.id)}
+                        className="absolute top-3 right-3 p-2 bg-white shadow-md rounded-full transition-transform hover:scale-110 z-10"
+                        title="Hapus dari favorit"
+                      >
+                        <HeartIconSolid className="w-5 h-5 text-red-500" />
+                      </button>
+                    </div>
+
+                    <div className="p-4 flex flex-col flex-grow justify-between">
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-900 line-clamp-2 leading-snug group-hover:text-blue-600 transition-colors">
+                          {p.title}
+                        </h3>
+                        <p className="text-lg font-bold text-blue-600 mt-2">
+                          Rp {Number(p.price).toLocaleString("id-ID")}
+                        </p>
+                      </div>
+                      
+                      <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50">
+                        <div className="flex items-center text-xs text-gray-500">
+                          <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                          {p.location || p.seller?.profile?.city || "Unknown"}
+                        </div>
+                        {(p.rating || p.rating! > 0) && (
+                          <div className="flex items-center text-xs font-semibold text-gray-700">
+                             <StarIcon className="w-3.5 h-3.5 text-yellow-400 mr-1" />
+                             {p.rating}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </ProtectedRoute>
   );
 }

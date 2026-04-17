@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { logout, getCurrentUser } from "@/services/authentication";
+import Image from "next/image";
 
 interface SidebarProfileProps {
   user?: any;
@@ -35,8 +36,21 @@ export default function SidebarProfile({ user }: SidebarProfileProps) {
       {currentUser ? (
         <>
           <div className="flex items-center gap-3 px-2">
-            <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold shadow-sm">
-              {getInitials(currentUser.name)}
+            <div className="w-10 h-10 rounded-full border-4 border-white shadow-lg overflow-hidden bg-white">
+              {currentUser?.avatar ? (
+                <Image
+                  src={currentUser.avatar}
+                  alt={currentUser.name || "User"}
+                  width={80}
+                  height={80}
+                  unoptimized
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center font-bold text-2xl text-blue-600">
+                  {currentUser?.name?.substring(0, 2).toUpperCase() || "U"}
+                </div>
+              )}
             </div>
             <div>
               <p className="text-sm font-semibold text-gray-800 leading-tight">

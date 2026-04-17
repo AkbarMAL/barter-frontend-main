@@ -32,9 +32,11 @@ export function proxy(request: NextRequest) {
   const isFavoritePage = pathname.startsWith("/favorites");
   const isNotificationPage = pathname.startsWith("/notifications");
   const isPurchasePage = pathname.startsWith("/purchases");
+  const isProfilePage = pathname.startsWith("/profile");
+  const isMessagesPage = pathname.startsWith("/messages");
 
   // Redirect ke login jika akses halaman protected tanpa token
-  const protectedPages = [isSellerPage, isTransactionPage, isFavoritePage, isNotificationPage, isPurchasePage];
+  const protectedPages = [isSellerPage, isTransactionPage, isFavoritePage, isNotificationPage, isPurchasePage, isProfilePage, isMessagesPage];
   
   if (!token && protectedPages.some(page => page)) {
     const loginUrl = new URL("/login", request.url);

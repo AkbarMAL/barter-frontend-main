@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { logout } from "@/services/authentication";
 import SidebarProfile from "@/components/sidebar-profile";
+import { ProtectedRoute } from "@/components/protected-route";
 
 const BASE_URL = "http://127.0.0.1:8000/api/v1";
 
@@ -38,7 +39,6 @@ const sellerMenus = [
     { name: "Transaksi", href: "/seller/transactions" },
     { name: "Refunds", href: "/seller/refunds" },
     { name: "Wallet", href: "/seller/wallet" },
-    { name: "Ads", href: "/seller/ads" },
     { name: "Notifikasi", href: "/seller/notifications" },
     { name: "Pindah ke halaman pembeli", href: "/" },
 ];
@@ -223,7 +223,8 @@ export default function SellerTransactionsPage() {
     });
 
     return (
-        <div className="flex min-h-screen w-full bg-white">
+        <ProtectedRoute requiredRole="seller">
+            <div className="flex min-h-screen w-full bg-white">
             {/* ── Sidebar ── */}
             <div className="w-64 bg-white border-r p-4 hidden md:flex flex-col justify-between">
                 <div>
@@ -526,5 +527,6 @@ export default function SellerTransactionsPage() {
                 </div>
             )}
         </div>
+        </ProtectedRoute>
     );
 }

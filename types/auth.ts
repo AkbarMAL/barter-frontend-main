@@ -1,3 +1,8 @@
+export interface SocialMediaItem {
+  name: string;
+  url: string;
+}
+
 export interface UserProfile {
   id?: number;
   user_id?: number;
@@ -7,6 +12,7 @@ export interface UserProfile {
   province?: string;
   latitude?: number;
   longitude?: number;
+  social_media?: SocialMediaItem[];
 }
 
 export interface SellerProfile {
@@ -34,7 +40,7 @@ export interface User {
   provider?: string;
   provider_id?: string;
   profile?: UserProfile;
-  sellerProfile?: SellerProfile | null;
+  seller_profile?: SellerProfile | null;
   roles?: string[];
   created_at?: string;
   updated_at?: string;
@@ -47,7 +53,6 @@ export interface LoginResponse {
     user: User;
     token: string;
     roles: string[];
-    is_seller: boolean;
     seller_profile?: SellerProfile | null;
   };
 }

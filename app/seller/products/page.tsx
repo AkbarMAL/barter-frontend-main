@@ -6,6 +6,7 @@ import Link from "next/link";
 import { logout } from "@/services/authentication";
 import { getAuthHeader } from "@/lib/auth-utils";
 import { usePathname } from "next/navigation";
+import { ProtectedRoute } from "@/components/protected-route";
 
 const BASE_URL = "http://127.0.0.1:8000/api/v1";
 
@@ -411,17 +412,17 @@ export default function SellerProducts() {
     { name: "Transaksi", href: "/seller/transactions" },
     { name: "Refunds", href: "/seller/refunds" },
     { name: "Wallet", href: "/seller/wallet" },
-    { name: "Ads", href: "/seller/ads" },
     { name: "Notifikasi", href: "/seller/notifications" },
     { name: "Pindah ke halaman pembeli", href: "/" }
   ];
 
   return (
-    <div className="flex min-h-screen w-full bg-white">
+    <ProtectedRoute requiredRole="seller">
+      <div className="flex min-h-screen w-full bg-white">
       {/* Sidebar */}
       <div className="w-64 bg-white border-r p-4 flex flex-col justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-blue-500"  style={{ letterSpacing: '2px' }}>Rather's</h1>
+          <h1 className="text-2xl font-bold text-blue-500" style={{ letterSpacing: '2px' }}>Rather&apos;s</h1>
           <p className="text-sm text-gray-500 mb-4">Seller Dashboard</p>
 
           <nav className="mt-6 space-y-2">
@@ -444,12 +445,26 @@ export default function SellerProducts() {
         {/* Profile */}
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center">
-              S
+            <div className="w-10 h-10 rounded-full border-4 border-white shadow-lg overflow-hidden bg-white">
+              {user?.avatar ? (
+                <Image
+                  src={user?.avatar || ""}
+                  alt={user?.name || "User"}
+                  width={80}
+                  height={80}
+                  unoptimized
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center font-bold text-2xl text-blue-600">
+                  {user?.name?.substring(0, 2).toUpperCase() || "U"}
+                </div>
+              )}
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-800">Seller Name</p>
-              <p className="text-xs text-blue-600 cursor-pointer">Lihat Profil</p>
+              <p className="text-sm font-medium text-gray-800">
+                {user?.name || "Seller Name"}
+              </p>              <p className="text-xs text-blue-600 cursor-pointer">Lihat Profil</p>
             </div>
           </div>
           <button
@@ -771,7 +786,8 @@ export default function SellerProducts() {
             </div>
           </div>
         )}
+        </div>
       </div>
-    </div>
+    </ProtectedRoute>
   );
 }

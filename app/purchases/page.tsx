@@ -10,6 +10,7 @@ import {
   createMidtransPayment,
   openSeamlessPayment,
 } from "@/services/transaction";
+import { ProtectedRoute } from "@/components/protected-route";
 
 const BASE_URL = "http://127.0.0.1:8000";
 
@@ -553,7 +554,8 @@ export default function PurchasesPage() {
   ];
 
   return (
-    <div className="flex min-h-screen w-full bg-white font-sans">
+    <ProtectedRoute>
+  <div className="flex min-h-screen w-full bg-white font-sans">
 
       {/* Toast */}
       {toast && (
@@ -780,5 +782,6 @@ export default function PurchasesPage() {
         )}
       </div>
     </div>
+  </ProtectedRoute>
   );
 }
