@@ -58,13 +58,17 @@ export interface TransactionDetail {
 }
 
 export interface PaymentData {
-  snap_token: string;
-  redirect_url: string;
-  order_id: string;
-  amount: number;
-  expired_at: string;
-  client_key: string;
-  is_production: boolean;
+  success: boolean;
+  message: string;
+  data: {
+    snap_token: string;
+    client_key: string;
+    is_production: boolean;
+    redirect_url: string;
+    order_id: string;
+    amount: string;
+    expired_at: string;
+  };
 }
 
 export interface PaymentStatus {
@@ -126,7 +130,7 @@ export const getTransactions = async (
  */
 export const createMidtransPayment = async (
   transactionId: number
-): Promise<{ success: boolean; message: string; data: PaymentData }> => {
+): Promise<PaymentData> => {
   const res = await api.post(`/payment/create/${transactionId}`);
   return res.data;
 };
@@ -156,6 +160,13 @@ export const cancelPayment = async (
 
 // ─── Midtrans Snap Helper ─────────────────────────────────────────────────────
 
+type SnapCallbacks = {
+  onSuccess?: (result: any) => void;
+  onPending?: (result: any) => void;
+  onError?: (result: any) => void;
+  onClose?: () => void;
+};
+
 /**
  * Load Midtrans Snap.js script ke dalam DOM.
  * Dipanggil sekali, aman dipanggil berkali-kali (idempotent).
@@ -178,7 +189,7 @@ export const loadMidtransSnap = (clientKey: string, isProduction: boolean): Prom
 
     const script = document.createElement("script");
     script.id = "midtrans-snap-script";
-    script.src = isProduction 
+    script.src = isProduction
       ? "https://app.midtrans.com/snap/snap.js"
       : "https://app.sandbox.midtrans.com/snap/snap.js";
 
@@ -190,27 +201,62 @@ export const loadMidtransSnap = (clientKey: string, isProduction: boolean): Prom
 };
 
 /**
- * Buka Midtrans Snap popup dengan token yang diberikan.
- * Pastikan loadMidtransSnap() dipanggil terlebih dahulu.
+ * Buka Midtrans Snap popup dengan token yang diberikan/**
+ * Buka Midtrans Seamless Snap Popup.
+ * Gunakan is_production dan client_key yang dikembalikan langsung dari backend.
+ *
+ * @param snapToken    - token dari backend (data.snap_token)
+ * @param clientKey    - client key dari backend (data.client_key)
+ * @param isProduction - flag dari backend (data.is_production)
+ * @param callbacks    - callback onSuccess, onPending, onError, onClose
  */
-export const openMidtransSnap = (
+export const openSeamlessPayment = (
   snapToken: string,
-  callbacks: {
-    onSuccess?: (result: any) => void;
-    onPending?: (result: any) => void;
-    onError?: (result: any) => void;
-    onClose?: () => void;
-  }
-): void => {
-  const snap = (window as any).snap;
-  if (!snap) {
-    console.error("Midtrans Snap belum dimuat");
-    return;
-  }
-  snap.pay(snapToken, {
-    onSuccess: callbacks.onSuccess ?? (() => {}),
-    onPending: callbacks.onPending ?? (() => {}),
-    onError: callbacks.onError ?? (() => {}),
-    onClose: callbacks.onClose ?? (() => {}),
+  clientKey: string,
+  isProduction: boolean,
+  callbacks: SnapCallbacks
+): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    if (typeof window === "undefined") return reject(new Error("Bukan browser environment"));
+
+    const snapJsUrl = isProduction
+      ? "https://app.midtrans.com/snap/snap.js"
+      : "https://app.sandbox.midtrans.com/snap/snap.js";
+
+    const tryPay = () => {
+      const snap = (window as any).snap;
+      if (!snap) {
+        reject(new Error("Midtrans Snap gagal dimuat"));
+        return;
+      }
+      snap.pay(snapToken, {
+        onSuccess: callbacks.onSuccess ?? (() => { }),
+        onPending: callbacks.onPending ?? (() => { }),
+        onError: callbacks.onError ?? (() => { }),
+        onClose: callbacks.onClose ?? (() => { }),
+      });
+      resolve();
+    };
+
+    // Cek apakah script sudah dimuat dengan URL + client_key yang tepat
+    const existingScript = document.getElementById("midtrans-snap-script") as HTMLScriptElement | null;
+    if (existingScript) {
+      const sameUrl = existingScript.src === snapJsUrl;
+      const sameKey = existingScript.getAttribute("data-client-key") === clientKey;
+      if (sameUrl && sameKey && (window as any).snap) {
+        tryPay();
+        return;
+      }
+      existingScript.remove();
+      delete (window as any).snap;
+    }
+
+    const script = document.createElement("script");
+    script.id = "midtrans-snap-script";
+    script.src = snapJsUrl;
+    script.setAttribute("data-client-key", clientKey);
+    script.onload = () => tryPay();
+    script.onerror = () => reject(new Error("Gagal memuat Midtrans Snap.js"));
+    document.head.appendChild(script);
   });
 };

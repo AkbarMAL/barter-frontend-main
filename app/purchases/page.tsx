@@ -2,14 +2,13 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import SidebarProfile from "@/components/sidebar-profile";
 import { submitRefund, SubmitRefundPayload } from "@/services/refund";
 import api from "@/services/api";
 import {
   createMidtransPayment,
-  loadMidtransSnap,
-  openMidtransSnap,
+  openSeamlessPayment,
 } from "@/services/transaction";
 
 const BASE_URL = "http://127.0.0.1:8000";
@@ -59,6 +58,7 @@ function getStatusColor(status: string) {
   switch (status) {
     case "pending": return "bg-yellow-100 text-yellow-800";
     case "payment_confirmed": return "bg-blue-100 text-blue-800";
+    case "cancelled": return "bg-red-100 text-red-700";
     case "processing": return "bg-indigo-100 text-indigo-800";
     case "shipped": return "bg-purple-100 text-purple-800";
     case "delivered": return "bg-teal-100 text-teal-800";
@@ -299,7 +299,7 @@ function RefundModal({ transaction, onClose, onSuccess }: RefundModalProps) {
                     value={bank}
                     onChange={(e) => { setBank(e.target.value); setErrors((p) => ({ ...p, bank: "" })); }}
                     placeholder="cth: BCA, Mandiri, BRI, BNI"
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 placeholder:text-gray-400"
                   />
                   {errors.bank && <p className="text-xs text-red-500 mt-1">{errors.bank}</p>}
                   {errors.refund_bank && <p className="text-xs text-red-500 mt-1">{errors.refund_bank}</p>}
@@ -311,7 +311,7 @@ function RefundModal({ transaction, onClose, onSuccess }: RefundModalProps) {
                     value={account}
                     onChange={(e) => { setAccount(e.target.value); setErrors((p) => ({ ...p, account: "" })); }}
                     placeholder="cth: 1234567890"
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 placeholder:text-gray-400"
                   />
                   {errors.account && <p className="text-xs text-red-500 mt-1">{errors.account}</p>}
                   {errors.refund_account && <p className="text-xs text-red-500 mt-1">{errors.refund_account}</p>}
@@ -323,7 +323,7 @@ function RefundModal({ transaction, onClose, onSuccess }: RefundModalProps) {
                     value={holder}
                     onChange={(e) => { setHolder(e.target.value); setErrors((p) => ({ ...p, holder: "" })); }}
                     placeholder="Nama sesuai buku tabungan"
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 placeholder:text-gray-400"
                   />
                   {errors.holder && <p className="text-xs text-red-500 mt-1">{errors.holder}</p>}
                   {errors.refund_holder && <p className="text-xs text-red-500 mt-1">{errors.refund_holder}</p>}
@@ -372,15 +372,19 @@ function RefundModal({ transaction, onClose, onSuccess }: RefundModalProps) {
 
 export default function PurchasesPage() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [transactions, setTransactions] = useState<ApiTransaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const [filter, setFilter] = useState("all");
   const [refundModal, setRefundModal] = useState<ApiTransaction | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmLoading, setConfirmLoading] = useState<number | null>(null);
   const [paymentLoading, setPaymentLoading] = useState<number | null>(null);
+  const [cancelLoading, setCancelLoading] = useState<number | null>(null);
 
   useEffect(() => {
     const userStr = localStorage.getItem("current_user");
@@ -414,6 +418,51 @@ export default function PurchasesPage() {
     fetchTransactions();
   }, [fetchTransactions]);
 
+  // Deteksi kembali dari halaman Midtrans dan sync status pembayaran
+  useEffect(() => {
+    const transactionStatus = searchParams.get("transaction_status");
+    const orderId = searchParams.get("order_id");
+
+    if (!transactionStatus || !orderId) return;
+
+    // Bersihkan URL dari params Midtrans
+    router.replace("/purchases");
+
+    const syncStatus = async () => {
+      setSyncing(true);
+      try {
+        // Ambil semua transaksi rekber pending, coba sync statusnya
+        const res = await api.get("/transactions?role=buyer");
+        const allTx: ApiTransaction[] = res.data?.data?.data ?? res.data?.data ?? [];
+
+        // Cari transaksi yang order_id-nya cocok
+        const pendingRekber = allTx.filter(
+          (t) => t.status === "pending" && t.type === "rekber"
+        );
+
+        // Panggil status endpoint untuk setiap transaksi pending
+        // Backend akan query ke Midtrans dan update DB otomatis
+        await Promise.allSettled(
+          pendingRekber.map((t) => api.get(`/payment/status/${t.id}`))
+        );
+
+        // Refresh list setelah sync
+        await fetchTransactions();
+
+        if (["settlement", "capture"].includes(transactionStatus)) {
+          showToast("Pembayaran berhasil dikonfirmasi!", "success");
+        }
+      } catch (err) {
+        // Gagal sync, tetap reload aja
+        fetchTransactions();
+      } finally {
+        setSyncing(false);
+      }
+    };
+
+    syncStatus();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
   const handleRefundSuccess = (txId: number) => {
     setRefundModal(null);
     showToast("Permintaan refund berhasil dikirim ke penjual!", "success");
@@ -449,34 +498,42 @@ export default function PurchasesPage() {
   const canPay = (t: ApiTransaction) =>
     t.status === "pending" && t.type === "rekber";
 
+  const canCancel = (t: ApiTransaction) =>
+    t.status === "pending" && t.type === "rekber";
+
   const handlePayNow = async (t: ApiTransaction) => {
     setPaymentLoading(t.id);
     try {
       const res = await createMidtransPayment(t.id);
-      if (res.success) {
-        await loadMidtransSnap(res.data.client_key, res.data.is_production);
-        openMidtransSnap(res.data.snap_token, {
-          onSuccess: () => {
-            showToast("Pembayaran berhasil! Pesanan sedang diproses.", "success");
-            fetchTransactions();
-          },
-          onPending: () => {
-            showToast("Pembayaran pending, menunggu konfirmasi.", "success");
-          },
-          onError: () => {
-            showToast("Pembayaran gagal. Silakan coba lagi.", "error");
-          },
-          onClose: () => {
-            // User menutup popup, tidak ada aksi
-          },
-        });
+      if (res.success && res.data?.redirect_url) {
+        window.location.href = res.data.redirect_url;
       } else {
-        showToast("Gagal memuat halaman pembayaran.", "error");
+        showToast("Gagal memuat link pembayaran.", "error");
       }
     } catch (err: any) {
       showToast(err?.response?.data?.message ?? "Gagal membuka pembayaran.", "error");
     } finally {
       setPaymentLoading(null);
+    }
+  };
+
+  const handleCancelOrder = async (t: ApiTransaction) => {
+    if (!confirm(`Batalkan pesanan ${t.transaction_code}?\nTindakan ini tidak bisa dibatalkan.`)) return;
+    setCancelLoading(t.id);
+    try {
+      const res = await api.post(`/payment/cancel/${t.id}`);
+      if (res.data.success) {
+        showToast("Pesanan berhasil dibatalkan.", "success");
+        setTransactions((prev) =>
+          prev.map((tx) => tx.id === t.id ? { ...tx, status: "cancelled" } : tx)
+        );
+      } else {
+        showToast(res.data.message ?? "Gagal membatalkan pesanan.", "error");
+      }
+    } catch (err: any) {
+      showToast(err?.response?.data?.message ?? "Gagal membatalkan pesanan.", "error");
+    } finally {
+      setCancelLoading(null);
     }
   };
 
@@ -492,6 +549,7 @@ export default function PurchasesPage() {
     { label: "Terkirim", value: "delivered" },
     { label: "Selesai", value: "completed" },
     { label: "Refund", value: "refund_requested" },
+    { label: "Dibatalkan", value: "cancelled" },
   ];
 
   return (
@@ -502,6 +560,16 @@ export default function PurchasesPage() {
         <div className={`fixed top-5 right-5 z-50 px-5 py-3 rounded-xl shadow-lg text-white text-sm font-semibold transition
           ${toast.type === "success" ? "bg-green-500" : "bg-red-500"}`}>
           {toast.msg}
+        </div>
+      )}
+
+      {/* Syncing overlay — saat cek status ke Midtrans */}
+      {syncing && (
+        <div className="fixed inset-0 z-40 bg-black/20 flex items-center justify-center">
+          <div className="bg-white rounded-2xl shadow-xl px-8 py-6 flex flex-col items-center gap-3">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500" />
+            <p className="text-sm font-semibold text-gray-700">Mengkonfirmasi pembayaran...</p>
+          </div>
         </div>
       )}
 
@@ -651,6 +719,11 @@ export default function PurchasesPage() {
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500" />
                         Memuat pembayaran…
                       </div>
+                    ) : cancelLoading === t.id ? (
+                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-400" />
+                        Membatalkan…
+                      </div>
                     ) : t.status === "refund_requested" ? (
                       <Link
                         href="/purchases/refunds"
@@ -668,6 +741,15 @@ export default function PurchasesPage() {
                             className="text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl px-4 py-2 transition shadow-sm flex items-center gap-1.5"
                           >
                             💳 Bayar Sekarang
+                          </button>
+                        )}
+                        {/* Batalkan Pesanan — untuk rekber yang masih pending */}
+                        {canCancel(t) && (
+                          <button
+                            onClick={() => handleCancelOrder(t)}
+                            className="text-sm font-bold text-red-600 border border-red-200 hover:bg-red-50 rounded-xl px-4 py-2 transition"
+                          >
+                            ✕ Batalkan Pesanan
                           </button>
                         )}
                         {/* Konfirmasi Terima — untuk status shipped/delivered */}

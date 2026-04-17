@@ -120,9 +120,21 @@ export default function SellerDashboard() {
     }
   };
 
+  const resolveImageUrl = (path: string) => {
+    if (!path) return "/no-image.png";
+    if (path.startsWith("http://") || path.startsWith("https://")) {
+      return path;
+    }
+    const normalizedPath = path.replace(/^\//, "");
+    if (normalizedPath.startsWith("storage/")) {
+      return `http://127.0.0.1:8000/${normalizedPath}`;
+    }
+    return `http://127.0.0.1:8000/storage/${normalizedPath}`;
+  };
+
   const getImage = (product: ApiProduct) => {
     if (product.images && product.images.length > 0) {
-      return `http://127.0.0.1:8000/storage/${product.images[0].image_path}`;
+      return resolveImageUrl(product.images[0].image_path);
     }
     return "/no-image.png";
   };
