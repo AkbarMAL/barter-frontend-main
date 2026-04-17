@@ -473,12 +473,12 @@ export default function ProfilePage() {
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">
                       Status Akun
                     </h3>
-                    <div className="space-y-2 flex gap-2">
+                    <div className="space-y-2 gap-2">
                       <span className="inline-block bg-blue-100 text-blue-700 px-4 py-2 rounded-full text-sm font-medium">
                         Pembeli
                       </span>
                       {user.is_seller && (
-                        <span className="inline-block bg-green-100 text-green-700 px-4 py-2 rounded-full text-sm font-medium">
+                        <span className="inline-block ml-4 bg-green-100 text-green-700 px-4 py-2 rounded-full text-sm font-medium">
                           Penjual
                         </span>
                       )}
