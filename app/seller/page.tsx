@@ -7,7 +7,6 @@ import { logout } from "@/services/authentication";
 import SidebarProfile from "@/components/sidebar-profile";
 import { usePathname } from "next/navigation";
 import { ProtectedRoute } from "@/components/protected-route";
-
 const BASE_URL = "http://127.0.0.1:8000/api/v1";
 
 interface ProductImage {
@@ -193,26 +192,45 @@ export default function SellerDashboard() {
           </div>
 
           {/* Loading */}
-          {loading && <p>Loading...</p>}
+          {loading && <p className="text-primary pb-4">Loading...</p>}
 
           {/* Recent Products */}
           <h2 className="font-semibold mb-3 text-primary">Produk Terbaru</h2>
-          <div className="flex gap-4 overflow-x-auto mb-8">
+          <div className="flex gap-4 overflow-x-auto pb-2 mb-8">
             {myProducts.slice(0, 5).map((p) => (
-              <div key={p.id} className="min-w-[240px] rounded-lg bg-white shadow p-2">
-                <Image
-                  src={getImage(p)}
-                  width={240}
-                  height={160}
-                  alt={p.title}
-                  className="rounded-lg object-cover"
-                />
-                <p className="text-sm mt-2 text-primary">{p.title}</p>
-                <p className="text-blue-600 font-semibold">
-                  Rp {Number(p.price).toLocaleString("id-ID")}
-                </p>
-                <p className="text-xs text-gray-500">Status: {p.status || 'Active'}</p>
-              </div>
+              <Link
+                key={p.id}
+                href={`/product/${p.id}`}
+                className="min-w-[240px] max-w-[240px] flex flex-col bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 hover:shadow-lg hover:-translate-y-1 transition"
+              >
+                <div className="w-full h-[140px] bg-gray-100 overflow-hidden">
+                  <Image
+                    src={getImage(p)}
+                    width={240}
+                    height={140}
+                    alt={p.title}
+                    unoptimized
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+
+                <div className="p-3 flex flex-col gap-1 flex-1">
+                  <p className="text-sm font-semibold text-primary line-clamp-2">
+                    {p.title}
+                  </p>
+
+                  <p className="text-blue-600 font-bold text-sm">
+                    Rp {Number(p.price).toLocaleString("id-ID")}
+                  </p>
+
+                  <p className="text-xs text-gray-500 mt-auto">
+                    Status:{" "}
+                    <span className="font-medium text-gray-700">
+                      {p.status || "Active"}
+                    </span>
+                  </p>
+                </div>
+              </Link>
             ))}
           </div>
 
