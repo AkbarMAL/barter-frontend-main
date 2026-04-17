@@ -284,18 +284,6 @@ export default function RegisterPage() {
             </span>
             Daftar dengan Google
           </button>
-
-          <button
-            type="button"
-            className="w-full flex items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
-          >
-            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-blue-50 text-blue-600">
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
-                <path d="M22 12.07C22 6.75 17.52 2.7 12 2.7S2 6.75 2 12.07c0 4.98 3.66 9.1 8.44 9.95v-7.05H7.9v-2.9h2.54V9.8c0-2.51 1.49-3.9 3.77-3.9 1.09 0 2.23.2 2.23.2v2.45h-1.26c-1.24 0-1.63.77-1.63 1.56v1.87h2.78l-.44 2.9h-2.34v7.05C18.34 21.17 22 17.05 22 12.07Z" />
-              </svg>
-            </span>
-            Daftar dengan Facebook
-          </button>
         </div>
 
         <p className="mt-6 text-center text-sm text-slate-500">
