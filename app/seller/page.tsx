@@ -41,10 +41,20 @@ interface Ad {
   created_at: string;
 }
 
+interface BarterRequest {
+  id: number;
+  status: string;
+  offer_item_name: string;
+  created_at: string;
+  product?: ApiProduct;
+  buyer?: { name: string };
+}
+
 export default function SellerDashboard() {
   const pathname = usePathname();
   const [myProducts, setMyProducts] = useState<ApiProduct[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [barters, setBarters] = useState<BarterRequest[]>([]);
   const [wallet, setWallet] = useState<Wallet>({ balance: 0 });
   const [ads, setAds] = useState<Ad[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,17 +95,19 @@ export default function SellerDashboard() {
       setLoading(true);
 
       // Fetch multiple data in parallel with auth headers
-      const [prodRes, transRes, walletRes, adsRes] = await Promise.all([
+      const [prodRes, transRes, walletRes, adsRes, barterRes] = await Promise.all([
         fetch(`${BASE_URL}/my/products`, { headers: getAuthHeaders() }),
         fetch(`${BASE_URL}/transactions?role=seller`, { headers: getAuthHeaders() }),
         fetch(`${BASE_URL}/wallet/balance`, { headers: getAuthHeaders() }),
         fetch(`${BASE_URL}/ads/my`, { headers: getAuthHeaders() }),
+        fetch(`${BASE_URL}/seller/barter`, { headers: getAuthHeaders() }),
       ]);
 
       const prodJson = await prodRes.json();
       const transJson = await transRes.json();
       const walletJson = await walletRes.json();
       const adsJson = await adsRes.json();
+      const barterJson = await barterRes.json();
 
       if (prodJson.success) {
         setMyProducts(prodJson.data.data || prodJson.data);
@@ -111,6 +123,10 @@ export default function SellerDashboard() {
 
       if (adsJson.success) {
         setAds(adsJson.data.data || adsJson.data);
+      }
+
+      if (barterJson.success) {
+        setBarters(barterJson.data.data || barterJson.data || []);
       }
     } catch (error) {
       console.error("Error fetch:", error);
@@ -239,20 +255,49 @@ export default function SellerDashboard() {
           <div className="bg-white rounded-lg shadow p-4">
             <div className="space-y-2">
               {transactions.slice(0, 5).map((t) => (
-                <div key={t.id} className="flex justify-between items-center border-b pb-2">
+                <div key={`tx-${t.id}`} className="flex justify-between items-center border-b pb-2">
                   <div>
                     <p className="text-sm font-medium">{t.product?.title || 'Product'}</p>
-                    <p className="text-xs text-gray-500">{new Date(t.created_at).toLocaleDateString()}</p>
+                    <p className="text-xs text-gray-500">{new Date(t.created_at).toLocaleDateString('id-ID')}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-semibold">Rp {(t.final_amount ?? 0).toLocaleString("id-ID")}</p>
+                    <p className="text-sm font-semibold">Rp {(t.final_amount ?? 0).toLocaleString('id-ID')}</p>
                     <p className={`text-xs ${t.status === 'completed' ? 'text-green-600' : 'text-yellow-600'}`}>
                       {t.status}
                     </p>
                   </div>
                 </div>
               ))}
-              {!loading && transactions.length === 0 && (
+              {barters.slice(0, 3).map((b) => (
+                <div key={`barter-${b.id}`} className="flex justify-between items-center border-b pb-2">
+                  <div>
+                    <p className="text-sm font-medium">
+                      <span className="inline-block bg-orange-100 text-orange-700 text-xs font-bold px-1.5 py-0.5 rounded mr-1">Barter</span>
+                      {b.product?.title || 'Produk'}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Ditawar: <span className="font-medium text-gray-700">{b.offer_item_name}</span> • {new Date(b.created_at).toLocaleDateString('id-ID')}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                      b.status === 'completed' ? 'bg-green-100 text-green-700' :
+                      b.status === 'rejected' || b.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                      b.status === 'accepted' || b.status === 'payment_confirmed' ? 'bg-blue-100 text-blue-700' :
+                      'bg-yellow-100 text-yellow-700'
+                    }`}>
+                      {b.status === 'pending' || b.status === 'seller_reviewing' ? 'Menunggu Review' :
+                       b.status === 'accepted' ? 'Disetujui' :
+                       b.status === 'payment_pending' ? 'Menunggu Bayar' :
+                       b.status === 'payment_confirmed' ? 'Bayar Dikonfirmasi' :
+                       b.status === 'completed' ? 'Selesai' :
+                       b.status === 'rejected' ? 'Ditolak' :
+                       b.status === 'cancelled' ? 'Dibatalkan' : b.status}
+                    </span>
+                  </div>
+                </div>
+              ))}
+              {!loading && transactions.length === 0 && barters.length === 0 && (
                 <p className="text-sm text-gray-400 text-center py-4">Belum ada transaksi</p>
               )}
             </div>

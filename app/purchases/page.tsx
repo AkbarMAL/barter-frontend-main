@@ -93,6 +93,7 @@ interface ApiTransaction {
   final_amount: number;
   total_price: number;
   created_at: string;
+  has_rated?: boolean; // apakah buyer sudah beri rating
   product?: {
     id: number;
     title: string;
@@ -102,6 +103,178 @@ interface ApiTransaction {
     id: number;
     name: string;
   };
+}
+
+// ── Rating Modal ──────────────────────────────────────────────────────────────
+
+const API_BASE = "http://127.0.0.1:8000/api/v1";
+function getAuthToken() {
+  return typeof window !== "undefined" ? localStorage.getItem("token") : null;
+}
+
+interface RatingModalProps {
+  transaction: ApiTransaction;
+  onClose: () => void;
+  onSuccess: (txId: number) => void;
+}
+
+function StarRatingInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const [hover, setHover] = useState(0);
+  return (
+    <div className="flex gap-1">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <button
+          key={star}
+          type="button"
+          onMouseEnter={() => setHover(star)}
+          onMouseLeave={() => setHover(0)}
+          onClick={() => onChange(star)}
+          className="transition-transform hover:scale-110 focus:outline-none"
+        >
+          <svg
+            className={`w-10 h-10 transition-colors drop-shadow-sm ${
+              star <= (hover || value) ? "text-yellow-400" : "text-gray-200"
+            }`}
+            fill="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+          </svg>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+const RATING_LABELS: Record<number, string> = {
+  1: "Sangat Buruk 😞",
+  2: "Kurang Baik 😕",
+  3: "Cukup 😐",
+  4: "Baik 😊",
+  5: "Sangat Baik 🤩",
+};
+
+function RatingModal({ transaction, onClose, onSuccess }: RatingModalProps) {
+  const [rating, setRating] = useState(0);
+  const [review, setReview] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async () => {
+    if (rating === 0) { setError("Pilih rating bintang terlebih dahulu."); return; }
+    setError("");
+    setSubmitting(true);
+    try {
+      const token = getAuthToken();
+      const res = await fetch(`${API_BASE}/ratings`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          transaction_id: transaction.id,
+          type: "buyer_to_seller",
+          rating,
+          review: review.trim() || undefined,
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        onSuccess(transaction.id);
+      } else {
+        setError(json.message || "Gagal mengirim rating.");
+      }
+    } catch {
+      setError("Terjadi kesalahan. Coba lagi.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in">
+        {/* Header */}
+        <div className="px-6 pt-6 pb-4 border-b border-gray-100 flex items-start justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">Beri Rating Penjual ⭐</h2>
+            <p className="text-sm text-gray-500 mt-0.5 line-clamp-1">
+              {transaction.product?.title ?? `Transaksi #${transaction.transaction_code}`}
+            </p>
+            {transaction.seller && (
+              <p className="text-xs text-gray-400 mt-0.5">
+                Penjual: <span className="font-semibold text-gray-600">{transaction.seller.name}</span>
+              </p>
+            )}
+          </div>
+          <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100 transition ml-2 flex-shrink-0">
+            <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="px-6 py-6 space-y-5">
+          {/* Star input */}
+          <div className="text-center py-2">
+            <p className="text-sm font-semibold text-gray-700 mb-4">Seberapa puas kamu dengan penjual?</p>
+            <div className="flex justify-center">
+              <StarRatingInput value={rating} onChange={setRating} />
+            </div>
+            <div className="h-7 mt-3">
+              {rating > 0 && (
+                <p className="text-base font-bold text-yellow-500">{RATING_LABELS[rating]}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Review text */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Ulasan <span className="text-gray-400 font-normal">(opsional)</span>
+            </label>
+            <textarea
+              rows={3}
+              value={review}
+              onChange={(e) => setReview(e.target.value)}
+              placeholder="Ceritakan pengalaman berbelanjaanmu kepada pembeli lain..."
+              maxLength={1000}
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 resize-none"
+            />
+            <p className="text-xs text-gray-400 mt-1 text-right">{review.length}/1000</p>
+          </div>
+
+          {error && (
+            <div className="bg-red-50 text-red-600 text-sm p-3 rounded-xl border border-red-100">
+              {error}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 pb-6 flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 py-3 border-2 border-gray-200 text-gray-600 font-bold text-sm rounded-2xl hover:bg-gray-50 transition"
+          >
+            Nanti Saja
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={submitting || rating === 0}
+            className="flex-1 py-3 bg-yellow-400 hover:bg-yellow-500 disabled:opacity-50 text-white font-bold text-sm rounded-2xl transition flex items-center justify-center gap-2 shadow-sm"
+          >
+            {submitting && (
+              <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            )}
+            {submitting ? "Mengirim..." : "⭐ Kirim Rating"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ── Refund Modal ──────────────────────────────────────────────────────────────
@@ -256,7 +429,7 @@ function RefundModal({ transaction, onClose, onSuccess }: RefundModalProps) {
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Ceritakan masalah yang Anda alami secara detail..."
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
                 />
               </div>
 
@@ -369,6 +542,173 @@ function RefundModal({ transaction, onClose, onSuccess }: RefundModalProps) {
   );
 }
 
+// ── Barter History Component ──────────────────────────────────────────────────
+
+function BarterHistoryList() {
+  const [barters, setBarters] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [filter, setFilter] = useState("all");
+
+  const fetchBarters = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api.get("/barter");
+      if (res.data.success) {
+        setBarters(res.data.data?.data ?? res.data.data ?? []);
+      }
+    } catch (err: any) {
+      setError(err?.response?.data?.message || "Gagal memuat barter.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchBarters(); }, [fetchBarters]);
+
+  const barterFilters = [
+    { label: "Semua", value: "all" },
+    { label: "Pending", value: "pending" },
+    { label: "Menunggu Bayar", value: "payment_pending" },
+    { label: "Selesai", value: "completed" },
+    { label: "Dibatalkan / Ditolak", value: "cancelled" }
+  ];
+
+  const filtered = filter === "all" ? barters : barters.filter(b => {
+     if (filter === "cancelled") return ["cancelled", "rejected"].includes(b.status);
+     if (filter === "completed") return ["completed", "payment_confirmed", "accepted"].includes(b.status);
+     return b.status === filter;
+  });
+
+  const getBarterStatusText = (status: string) => {
+    switch (status) {
+      case "pending": return "Menunggu Penjual";
+      case "seller_reviewing": return "Ditinjau Penjual";
+      case "accepted": return "Disetujui (Menunggu Selesai)";
+      case "payment_pending": return "Menunggu Bayar Selisih";
+      case "payment_confirmed": return "Pembayaran Dikonfirmasi";
+      case "completed": return "Selesai";
+      case "cancelled": return "Dibatalkan Pembeli";
+      case "rejected": return "Ditolak Penjual";
+      default: return status;
+    }
+  };
+
+  const getBarterStatusColor = (status: string) => {
+    switch (status) {
+      case "pending":
+      case "seller_reviewing": return "bg-gray-100 text-gray-800";
+      case "payment_pending": return "bg-orange-100 text-orange-800";
+      case "payment_confirmed":
+      case "accepted": return "bg-blue-100 text-blue-800";
+      case "completed": return "bg-green-100 text-green-800";
+      case "cancelled":
+      case "rejected": return "bg-red-100 text-red-800";
+      default: return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const handleCancel = async (id: number) => {
+    if (!confirm("Yakin ingin membatalkan pengajuan barter?")) return;
+    try {
+      const res = await api.post(`/barter/${id}/cancel`);
+      if (res.data.success) {
+        fetchBarters();
+      }
+    } catch { 
+      alert("Gagal membatalkan barter."); 
+    }
+  };
+
+  const handlePay = async (id: number) => {
+    try {
+      const res = await api.post(`/barter/${id}/pay`);
+      if (res.data.success && res.data.data?.snap_token) {
+        window.location.href = res.data.data.redirect_url;
+      }
+    } catch { 
+      alert("Gagal memanggil pembayaran."); 
+    }
+  };
+
+  return (
+    <div className="mt-4">
+        {/* Barter Filter Tabs */}
+        <div className="flex gap-2 mb-6 flex-wrap">
+          {barterFilters.map((f) => (
+            <button
+              key={f.value}
+              onClick={() => setFilter(f.value)}
+              className={`px-4 py-1.5 rounded-full text-sm font-semibold transition
+                ${filter === f.value ? "bg-blue-500 text-white shadow" : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"}`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        {loading ? (
+          <div className="flex justify-center py-24"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500"/></div>
+        ) : error ? (
+          <div className="text-center py-20 bg-white rounded-3xl border border-red-100 text-red-500 font-semibold shadow-sm">{error}</div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-20 bg-white rounded-3xl border border-gray-100 shadow-sm">
+            <div className="text-5xl mb-4">🔄</div>
+            <h3 className="text-lg font-bold text-gray-900">Belum ada barter aktif</h3>
+            <p className="text-gray-500 mt-2 text-sm">Temukan barang di marketplace dan mulai tukar tambah!</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {filtered.map(b => {
+              const imgPath = b.product?.images?.[0]?.image_path;
+              const productImg = imgPath ? getStorageUrl(imgPath) : null;
+              const selisih = Number(b.offer_additional_price);
+              
+              return (
+                <div key={b.id} className="bg-white rounded-2xl border border-gray-100 p-5 flex flex-col md:flex-row gap-5 shadow-sm hover:shadow-md transition">
+                  {productImg && <img src={productImg} alt="Produk" className="w-24 h-24 object-cover rounded-xl shrink-0 border" />}
+                  <div className="flex-1 space-y-2">
+                     <div className="flex items-center gap-2 mb-1">
+                       <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${getBarterStatusColor(b.status)}`}>
+                         {getBarterStatusText(b.status)}
+                       </span>
+                       <span className="text-xs text-gray-400 font-mono">ID: {b.id} • {formatDate(b.created_at)}</span>
+                     </div>
+                     <h3 className="font-bold text-gray-900 text-lg">Incaran: {b.product?.title}</h3>
+                     <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                        <p><span className="font-semibold text-gray-800">Barang ditawarkan:</span> {b.offer_item_name}</p>
+                        {selisih > 0 && (
+                          <p><span className="font-semibold text-gray-800">Menawarkan selisih:</span> <span className="text-orange-600 font-bold">{formatRupiah(selisih)}</span></p>
+                        )}
+                        <p className="mt-1 text-xs text-gray-500 italic">"{b.offer_description}"</p>
+                     </div>
+                  </div>
+                  <div className="flex flex-col gap-2 shrink-0 justify-center">
+                     {["pending", "seller_reviewing"].includes(b.status) && (
+                       <button onClick={() => handleCancel(b.id)} className="px-4 py-2 text-sm border-2 border-red-100 text-red-500 rounded-xl hover:bg-red-50 font-bold transition">
+                         Batalkan Barter
+                       </button>
+                     )}
+                     {b.status === "payment_pending" && (
+                       <button onClick={() => handlePay(b.id)} className="px-5 py-2.5 text-sm bg-orange-500 text-white rounded-xl hover:bg-orange-600 font-bold shadow-sm transition">
+                         Bayar Selisih
+                       </button>
+                     )}
+                     {b.seller_note && (
+                       <div className="text-xs text-orange-700 bg-orange-50 p-2 rounded max-w-[200px]">
+                         <span className="font-bold">Balasan Penjual:</span> {b.seller_note}
+                       </div>
+                     )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function PurchasesPage() {
@@ -383,9 +723,12 @@ export default function PurchasesPage() {
   const [refundModal, setRefundModal] = useState<ApiTransaction | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"purchases" | "barters">("purchases");
   const [confirmLoading, setConfirmLoading] = useState<number | null>(null);
   const [paymentLoading, setPaymentLoading] = useState<number | null>(null);
   const [cancelLoading, setCancelLoading] = useState<number | null>(null);
+  const [ratingModal, setRatingModal] = useState<ApiTransaction | null>(null);
+  const [ratedTxIds, setRatedTxIds] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     const userStr = localStorage.getItem("current_user");
@@ -393,6 +736,13 @@ export default function PurchasesPage() {
       try { setUser(JSON.parse(userStr)); } catch { /* ignore */ }
     }
   }, []);
+
+  useEffect(() => {
+    if (searchParams.get("tab") === "barters") {
+      setActiveTab("barters");
+    }
+  }, [searchParams]);
+
 
   const showToast = (msg: string, type: "success" | "error") => {
     setToast({ msg, type });
@@ -493,6 +843,15 @@ export default function PurchasesPage() {
   const canRefund = (t: ApiTransaction) =>
     ["delivered", "completed"].includes(t.status);
 
+  const canRate = (t: ApiTransaction) =>
+    t.status === "completed" && !ratedTxIds.has(t.id);
+
+  const handleRatingSuccess = (txId: number) => {
+    setRatingModal(null);
+    setRatedTxIds((prev) => new Set([...prev, txId]));
+    showToast("Rating berhasil dikirim! Terima kasih atas ulasanmu. ⭐", "success");
+  };
+
   const canConfirm = (t: ApiTransaction) =>
     ["shipped", "delivered"].includes(t.status);
 
@@ -575,6 +934,15 @@ export default function PurchasesPage() {
         </div>
       )}
 
+      {/* Rating Modal */}
+      {ratingModal && (
+        <RatingModal
+          transaction={ratingModal}
+          onClose={() => setRatingModal(null)}
+          onSuccess={handleRatingSuccess}
+        />
+      )}
+
       {/* Refund Modal */}
       {refundModal && (
         <RefundModal
@@ -608,41 +976,65 @@ export default function PurchasesPage() {
       <div className="flex-1 md:ml-64 p-6 bg-gray-50 min-h-screen">
 
         {/* Header */}
-        <div className="mb-6 flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Pembelian Saya</h1>
-            <p className="text-gray-500 text-sm mt-1">Pantau status pembelian dan ajukan refund jika diperlukan.</p>
+        <div className="mb-6">
+          <div className="flex items-center justify-between gap-4 mb-4">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Aktivitas Belanja</h1>
+              <p className="text-gray-500 text-sm mt-1">Pantau status pembelian dan ajukan refund jika diperlukan.</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <Link
+                href="/purchases/refunds"
+                className="text-sm font-semibold text-orange-600 border border-orange-200 bg-orange-50 rounded-xl px-4 py-2 hover:bg-orange-100 transition"
+              >
+                📋 Riwayat Refund
+              </Link>
+              <button
+                onClick={fetchTransactions}
+                disabled={loading}
+                className="text-sm font-semibold text-blue-600 border border-blue-200 rounded-xl px-4 py-2 hover:bg-blue-50 disabled:opacity-50 transition"
+              >
+                {loading ? "Memuat…" : "↻ Refresh"}
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            <Link
-              href="/purchases/refunds"
-              className="text-sm font-semibold text-orange-600 border border-orange-200 bg-orange-50 rounded-xl px-4 py-2 hover:bg-orange-100 transition"
-            >
-              📋 Riwayat Refund Saya
-            </Link>
+          
+          {/* Main Toggle Bar */}
+          <div className="flex gap-6 border-b border-gray-200">
             <button
-              onClick={fetchTransactions}
-              disabled={loading}
-              className="text-sm font-semibold text-blue-600 border border-blue-200 rounded-xl px-4 py-2 hover:bg-blue-50 disabled:opacity-50 transition"
+              onClick={() => setActiveTab("purchases")}
+              className={`pb-3 text-sm font-bold border-b-2 transition ${
+                activeTab === "purchases" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-400 hover:text-gray-600"
+              }`}
             >
-              {loading ? "Memuat…" : "↻ Refresh"}
+              Pembelian Reguler
+            </button>
+            <button
+              onClick={() => setActiveTab("barters")}
+              className={`pb-3 text-sm font-bold border-b-2 transition ${
+                activeTab === "barters" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-400 hover:text-gray-600"
+              }`}
+            >
+              Tukar Tambah (Barter)
             </button>
           </div>
         </div>
 
-        {/* Filter Tabs */}
-        <div className="flex gap-2 mb-6 flex-wrap">
-          {filters.map((f) => (
-            <button
-              key={f.value}
-              onClick={() => setFilter(f.value)}
-              className={`px-4 py-1.5 rounded-full text-sm font-semibold transition
-                ${filter === f.value ? "bg-blue-500 text-white shadow" : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"}`}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
+        {activeTab === "purchases" ? (
+          <>
+            {/* Filter Tabs */}
+            <div className="flex gap-2 mb-6 flex-wrap">
+              {filters.map((f) => (
+                <button
+                  key={f.value}
+                  onClick={() => setFilter(f.value)}
+                  className={`px-4 py-1.5 rounded-full text-sm font-semibold transition
+                    ${filter === f.value ? "bg-blue-500 text-white shadow" : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"}`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
 
         {/* Content */}
         {loading ? (
@@ -772,6 +1164,21 @@ export default function PurchasesPage() {
                             Ajukan Refund
                           </button>
                         )}
+                        {/* Beri Rating — untuk transaksi selesai yang belum dirating */}
+                        {canRate(t) && (
+                          <button
+                            onClick={() => setRatingModal(t)}
+                            className="text-sm font-bold text-yellow-700 bg-yellow-50 border border-yellow-300 hover:bg-yellow-100 rounded-xl px-4 py-2 transition"
+                          >
+                            ⭐ Beri Rating
+                          </button>
+                        )}
+                        {ratedTxIds.has(t.id) && t.status === "completed" && (
+                          <span className="text-sm text-green-600 font-semibold flex items-center gap-1">
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            Sudah Dirating
+                          </span>
+                        )}
                       </>
                     )}
                   </div>
@@ -780,6 +1187,11 @@ export default function PurchasesPage() {
             })}
           </div>
         )}
+        </>
+        ) : (
+          <BarterHistoryList />
+        )}
+
       </div>
     </div>
   </ProtectedRoute>

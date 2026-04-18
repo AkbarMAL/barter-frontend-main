@@ -93,12 +93,13 @@ export default function WalletPage() {
     const [submitLoading, setSubmitLoading] = useState(false);
     const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
-    // Payment method (localStorage)
+    // Payment method (dari DB, bukan localStorage)
     const [savedMethod, setSavedMethod] = useState<PaymentMethod>({
         bank_name: "",
         bank_account: "",
         bank_holder: "",
     });
+    const [methodLoading, setMethodLoading] = useState(false);
 
     // Withdraw form
     const [withdrawForm, setWithdrawForm] = useState({
@@ -115,20 +116,58 @@ export default function WalletPage() {
         bank_holder: "",
     });
 
-    // ─── Load saved payment method from localStorage ──────────────────────────
+    // ─── Load user & fetch payment method from DB ────────────────────────────
     useEffect(() => {
-        // Load user
         const userStr = localStorage.getItem("current_user");
+        let loadedUser: any = null;
         if (userStr) {
-            try { setUser(JSON.parse(userStr)); } catch { /* ignore */ }
+            try {
+                loadedUser = JSON.parse(userStr);
+                setUser(loadedUser);
+            } catch { /* ignore */ }
         }
-        // Load saved payment method
-        const saved = localStorage.getItem("wallet_payment_method");
-        if (saved) {
-            const method: PaymentMethod = JSON.parse(saved);
-            setSavedMethod(method);
-        }
+        fetchPaymentMethod(loadedUser?.id ?? null);
     }, []);
+
+    // Helper: buat key localStorage per-user
+    const getPaymentMethodKey = (userId?: number | null) => {
+        return userId ? `wallet_payment_method_${userId}` : "wallet_payment_method";
+    };
+
+    const fetchPaymentMethod = async (userId?: number | null) => {
+        setMethodLoading(true);
+        const localKey = getPaymentMethodKey(userId);
+        try {
+            const res = await fetch(`${BASE_URL}/wallet/payment-method`, { headers: getAuthHeaders() });
+            const json = await res.json();
+            if (json.success && json.data) {
+                setSavedMethod({
+                    bank_name: json.data.bank_name || "",
+                    bank_account: json.data.bank_account || "",
+                    bank_holder: json.data.bank_holder || "",
+                });
+            } else {
+                // Fallback ke localStorage per-user jika API belum tersedia
+                const saved = localStorage.getItem(localKey);
+                if (saved) {
+                    try { setSavedMethod(JSON.parse(saved)); } catch { /* ignore */ }
+                } else {
+                    // Reset ke kosong jika tidak ada data untuk user ini
+                    setSavedMethod({ bank_name: "", bank_account: "", bank_holder: "" });
+                }
+            }
+        } catch {
+            // Fallback ke localStorage per-user jika request gagal
+            const saved = localStorage.getItem(localKey);
+            if (saved) {
+                try { setSavedMethod(JSON.parse(saved)); } catch { /* ignore */ }
+            } else {
+                setSavedMethod({ bank_name: "", bank_account: "", bank_holder: "" });
+            }
+        } finally {
+            setMethodLoading(false);
+        }
+    };
 
     // ─── Fetch wallet data ────────────────────────────────────────────────────
     useEffect(() => {
@@ -227,12 +266,39 @@ export default function WalletPage() {
         setShowSettingsModal(true);
     };
 
-    const handleSaveSettings = (e: React.FormEvent) => {
+    const handleSaveSettings = async (e: React.FormEvent) => {
         e.preventDefault();
-        localStorage.setItem("wallet_payment_method", JSON.stringify(settingsForm));
-        setSavedMethod({ ...settingsForm });
-        setShowSettingsModal(false);
-        showToast("success", "Metode pembayaran berhasil disimpan!");
+        setMethodLoading(true);
+        const localKey = getPaymentMethodKey(user?.id ?? null);
+        try {
+            const res = await fetch(`${BASE_URL}/wallet/payment-method`, {
+                method: "POST",
+                headers: getAuthHeaders(),
+                body: JSON.stringify(settingsForm),
+            });
+            const json = await res.json();
+            if (json.success) {
+                setSavedMethod({ ...settingsForm });
+                setShowSettingsModal(false);
+                showToast("success", "Metode pembayaran berhasil disimpan!");
+                // Cache per-user di localStorage:
+                localStorage.setItem(localKey, JSON.stringify(settingsForm));
+            } else {
+                // Fallback: simpan ke localStorage per-user
+                localStorage.setItem(localKey, JSON.stringify(settingsForm));
+                setSavedMethod({ ...settingsForm });
+                setShowSettingsModal(false);
+                showToast("success", "Metode pembayaran disimpan secara lokal.");
+            }
+        } catch {
+            // Jika API gagal, fallback localStorage per-user
+            localStorage.setItem(localKey, JSON.stringify(settingsForm));
+            setSavedMethod({ ...settingsForm });
+            setShowSettingsModal(false);
+            showToast("success", "Metode pembayaran disimpan secara lokal.");
+        } finally {
+            setMethodLoading(false);
+        }
     };
 
     // ─── Badge helpers ────────────────────────────────────────────────────────

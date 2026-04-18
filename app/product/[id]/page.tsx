@@ -297,6 +297,277 @@ function CheckoutModal({ product, onClose, onSuccess }: CheckoutModalProps) {
   );
 }
 
+// ─── Barter Modal ────────────────────────────────────────────────────────────
+
+interface BarterModalProps {
+  product: any;
+  onClose: () => void;
+  onSuccess: (barterId: number) => void;
+}
+
+function BarterModal({ product, onClose, onSuccess }: BarterModalProps) {
+  const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
+  const [offerItemName, setOfferItemName] = useState("");
+  const [offerCategoryId, setOfferCategoryId] = useState("");
+  const [offerDescription, setOfferDescription] = useState("");
+  const [offerAdditionalPrice, setOfferAdditionalPrice] = useState("");
+  const [buyerNote, setBuyerNote] = useState("");
+  const [images, setImages] = useState<File[]>([]);
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    fetch(`${BASE_URL}/categories`)
+      .then(res => res.json())
+      .then(json => {
+        if (json.success && json.data?.data) {
+          setCategories(json.data.data);
+        } else if (json.data) {
+          setCategories(json.data);
+        }
+      })
+      .catch(err => console.error("Failed to load categories", err));
+  }, []);
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length + images.length > 5) {
+      setErrors((p) => ({ ...p, images: "Maksimal 5 foto." }));
+      return;
+    }
+    setErrors((p) => ({ ...p, images: "" }));
+    setImages((p) => [...p, ...files]);
+    setPreviewUrls((p) => [...p, ...files.map((f) => URL.createObjectURL(f))]);
+  };
+
+  const removeImage = (i: number) => {
+    setImages((p) => p.filter((_, idx) => idx !== i));
+    setPreviewUrls((p) => p.filter((_, idx) => idx !== i));
+  };
+
+  const validate = () => {
+    const e: Record<string, string> = {};
+    if (!offerItemName.trim()) e.offer_item_name = "Nama barang wajib diisi.";
+    if (!offerCategoryId) e.offer_category_id = "Kategori wajib dipilih.";
+    if (!offerDescription.trim()) e.offer_description = "Kondisi / Deskripsi wajib diisi.";
+    if (images.length === 0) e.images = "Minimal 1 foto barang.";
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const handleSubmit = async () => {
+    if (!validate()) return;
+    setSubmitting(true);
+    
+    try {
+      const token = localStorage.getItem("token");
+      const formData = new FormData();
+      formData.append("product_id", String(product.id));
+      formData.append("offer_item_name", offerItemName);
+      formData.append("offer_category_id", offerCategoryId);
+      formData.append("offer_description", offerDescription);
+      
+      if (offerAdditionalPrice) {
+        formData.append("offer_additional_price", offerAdditionalPrice.replace(/\D/g, ""));
+      } else {
+        formData.append("offer_additional_price", "0");
+      }
+      
+      if (buyerNote) {
+        formData.append("buyer_note", buyerNote);
+      }
+      
+      images.forEach((img) => {
+        formData.append("offer_images[]", img);
+      });
+
+      const res = await fetch(`${BASE_URL}/barter`, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      const json = await res.json();
+      if (json.success) {
+        onSuccess(json.data.id);
+      } else {
+        const apiErrors = json.errors;
+        if (apiErrors) {
+          const flat: Record<string, string> = {};
+          Object.entries(apiErrors).forEach(([k, v]) => {
+            flat[k] = Array.isArray(v) ? String(v[0]) : String(v);
+          });
+          setErrors(flat);
+        } else {
+          setErrors({ _general: json.message ?? "Gagal mengajukan barter." });
+        }
+      }
+    } catch (err) {
+      setErrors({ _general: "Terjadi kesalahan saat menghubungi server." });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] bg-black/50 flex flex-col items-center justify-center p-4">
+      <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl flex flex-col max-h-[90vh]">
+        {/* Header */}
+        <div className="px-6 pt-6 pb-4 border-b border-gray-100 flex items-start justify-between shrink-0">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">Ajukan Barter / Tukar Tambah</h2>
+            <p className="text-sm text-gray-500 mt-0.5 max-w-[250px] truncate">Penawaran untuk: {product.title}</p>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100 transition ml-2 flex-shrink-0">
+            <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="px-6 py-5 overflow-y-auto flex-1 space-y-5">
+          {/* Warning Notice COD */}
+          <div className="bg-orange-50 border border-orange-100 rounded-2xl p-4 flex gap-3">
+            <span className="text-xl">⚠️</span>
+            <div className="text-sm text-orange-800">
+              <p className="font-bold mb-1">Penting sebelum mengajukan!</p>
+              <p>Sistem ini menggunakan COD (pertemuan langsung). Harap hubungi penjual via WhatsApp / Sosmed terlebih dahulu untuk menentukan titik temu.</p>
+            </div>
+          </div>
+
+          {errors._general && (
+            <div className="bg-red-50 text-red-600 text-sm p-3 rounded-xl border border-red-100">
+              {errors._general}
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Nama Barang Kamu *</label>
+            <input
+              type="text"
+              value={offerItemName}
+              onChange={(e) => { setOfferItemName(e.target.value); setErrors(p => ({ ...p, offer_item_name: "" })); }}
+              placeholder="cth: iPhone 13 Pro"
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+            {errors.offer_item_name && <p className="text-xs text-red-500 mt-1">{errors.offer_item_name}</p>}
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Kategori Barang *</label>
+            <select
+              value={offerCategoryId}
+              onChange={(e) => { setOfferCategoryId(e.target.value); setErrors(p => ({ ...p, offer_category_id: "" })); }}
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+            >
+              <option value="">-- Pilih Kategori --</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+            {errors.offer_category_id && <p className="text-xs text-red-500 mt-1">{errors.offer_category_id}</p>}
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Harga Selisih (Opsional)</label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-medium text-sm">Rp</span>
+              <input
+                type="text"
+                value={offerAdditionalPrice}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, "");
+                  setOfferAdditionalPrice(val ? Number(val).toLocaleString("id-ID") : "");
+                }}
+                placeholder="0"
+                className="w-full border border-gray-200 rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              />
+            </div>
+            <p className="text-xs text-gray-500 mt-2">Uang tambahan yang akan kamu bayar ke penjual (isi 0 jika murni bertukar barang tanpa tambahan uang).</p>
+            {errors.offer_additional_price && <p className="text-xs text-red-500 mt-1">{errors.offer_additional_price}</p>}
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Foto Barang * <span className="text-gray-400 font-normal">(maks. 5)</span></label>
+            <div className="flex gap-2 flex-wrap mb-2">
+              {previewUrls.map((url, i) => (
+                <div key={i} className="relative w-16 h-16">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={url} alt="" className="w-full h-full object-cover rounded-xl border border-gray-200" />
+                  <button
+                    onClick={() => removeImage(i)}
+                    className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] hover:bg-red-600"
+                  >✕</button>
+                </div>
+              ))}
+              {images.length < 5 && (
+                <label className="w-16 h-16 border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition">
+                  <span className="text-2xl text-gray-300">+</span>
+                  <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageChange} />
+                </label>
+              )}
+            </div>
+            {errors.images && <p className="text-xs text-red-500">{errors.images}</p>}
+            {errors.offer_images && <p className="text-xs text-red-500">{errors.offer_images}</p>}
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Kondisi & Deskripsi *</label>
+            <textarea
+              rows={3}
+              value={offerDescription}
+              onChange={(e) => { setOfferDescription(e.target.value); setErrors(p => ({ ...p, offer_description: "" })); }}
+              placeholder="Ceritakan kelengkapan, minus, dan kondisi barangmu... (cth: iPhone 13 Pro 256GB, kondisi 90%, lengkap box)"
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+            />
+            {errors.offer_description && <p className="text-xs text-red-500 mt-1">{errors.offer_description}</p>}
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+              Catatan untuk Penjual <span className="text-gray-400 font-normal">(opsional)</span>
+            </label>
+            <textarea
+              rows={2}
+              value={buyerNote}
+              onChange={(e) => setBuyerNote(e.target.value)}
+              placeholder="Cth: Mau tukar karena saya sedang butuh laptop, ada selisih 500rb..."
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+            />
+            {errors.buyer_note && <p className="text-xs text-red-500 mt-1">{errors.buyer_note}</p>}
+          </div>
+
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-gray-100 flex gap-3 shrink-0 bg-gray-50 rounded-b-3xl">
+          <button
+            onClick={onClose}
+            className="flex-1 py-3 border-2 border-gray-200 text-gray-600 font-bold text-sm rounded-2xl hover:bg-white transition"
+          >
+            Batal
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={submitting}
+            className="flex-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-bold text-sm rounded-2xl transition flex items-center justify-center gap-2 min-w-[140px] shadow-sm"
+          >
+            {submitting && (
+              <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            )}
+            {submitting ? "Mengirim..." : "Kirim Penawaran"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -313,6 +584,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
   const [sellerSocialMedia, setSellerSocialMedia] = useState<{ name: string; url: string }[]>([]);
   const [isContactPopupOpen, setIsContactPopupOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [isBarterOpen, setIsBarterOpen] = useState(false);
   const [checkoutToast, setCheckoutToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
   const showCheckoutToast = useCallback((msg: string, type: "success" | "error") => {
@@ -437,16 +709,31 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
       setSellerWhatsApp(pData.seller?.wa_number || pData.seller?.profile?.wa_number || "");
       setSellerSocialMedia(pData.seller?.profile?.social_media || []);
 
-      // 2. Fetch Seller Ratings (jika ID real backend ada provider ratingnya)
+      // 2. Fetch Seller & Product Ratings dari API real
       if (pData.seller?.id) {
         try {
           const ratRes = await fetch(`${BASE_URL}/ratings/seller/${pData.seller.id}`);
           const ratJson = await ratRes.json();
           if (ratJson.success) {
-            setSellerStats(ratJson.data);
+            const summary = ratJson.summary || {};
+            const ratingItems = ratJson.data?.data || [];
+            
+            setSellerStats({
+              average_rating: summary.avg || 0,
+              total_reviews: summary.count || 0,
+              total_products: 1,
+              start_counts: summary.breakdown || {},
+              reviews: ratingItems.map((r: any) => ({
+                id: r.id,
+                reviewer_name: r.rater?.name || "Pembeli",
+                rating: Number(r.rating),
+                comment: r.review || "",
+                created_at: r.created_at,
+              })),
+            });
           }
         } catch (e) {
-          console.log("Could not fetch seller rating", e);
+          console.log("Could not fetch product ratings", e);
         }
       }
 
@@ -648,7 +935,15 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
                   Hubungi Penjual
                 </button>
               </div>
-              <button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2 text-sm">
+              <button 
+                onClick={() => {
+                  const token = localStorage.getItem("token");
+                  if (!token) { router.push("/login"); return; }
+                  if (isMockProduct) { alert("Pembelian/Barter hanya tersedia untuk produk asli."); return; }
+                  setIsBarterOpen(true);
+                }}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2 text-sm"
+              >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
                 Barter / Tukar Tambah
               </button>
@@ -764,11 +1059,9 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             {/* Progress Bars Tengah */}
             <div className="flex-1 space-y-3">
               {[5, 4, 3, 2, 1].map((ratingNum) => {
-                // Hardcode logic mockup diagram supaya presisi sama gambar Figma
-                let count = 0;
-                let percent = "0%";
-                if (ratingNum === 5) { count = 2; percent = "66%"; }
-                if (ratingNum === 4) { count = 1; percent = "33%"; }
+                const count = sellerStats?.start_counts?.[ratingNum] || 0;
+                const total = sellerStats?.total_reviews || 0;
+                const percent = total > 0 ? `${(count / total) * 100}%` : "0%";
 
                 return (
                   <div key={ratingNum} className="flex items-center gap-3">
@@ -791,26 +1084,36 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
           </div>
 
           <div className="mt-8 space-y-6 max-w-4xl">
+            {sellerStats?.reviews?.length === 0 && !isMockProduct && (
+              <div className="text-center py-8 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                <p className="text-gray-400 text-sm">Belum ada ulasan untuk produk ini.</p>
+              </div>
+            )}
             {sellerStats?.reviews?.map((review: any, i: number) => (
               <div key={i} className="flex gap-4 border-b border-gray-100 pb-6 last:border-0 last:pb-0">
-                <div className="w-12 h-12 bg-gray-200 rounded-full overflow-hidden shrink-0 mt-1">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={`https://i.pravatar.cc/150?u=${review.id || i}`} alt="Avatar" className="w-full h-full object-cover" />
+                <div className="w-12 h-12 bg-blue-100 rounded-full overflow-hidden shrink-0 mt-1 flex items-center justify-center text-blue-600 font-bold text-lg">
+                  {review.reviewer_name?.charAt(0)?.toUpperCase() || "?"}
                 </div>
                 <div className="flex-1">
-                  <p className="font-bold text-gray-900 text-sm">{review.reviewer_name}</p>
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <p className="font-bold text-gray-900 text-sm">{review.reviewer_name}</p>
+                    {review.created_at && (
+                      <p className="text-xs text-gray-400">
+                        {new Date(review.created_at).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}
+                      </p>
+                    )}
+                  </div>
                   <div className="flex my-1.5">
                     {[...Array(5)].map((_, index) => (
                       <StarIcon key={index} className={`w-4 h-4 ${index < review.rating ? 'text-orange-500' : 'text-gray-200'}`} />
                     ))}
+                    <span className="text-xs font-semibold text-gray-500 ml-1.5">{review.rating}/5</span>
                   </div>
-                  <p className="text-gray-700 text-sm mt-3 mb-4 leading-relaxed">
-                    {review.comment}
-                  </p>
-                  <button className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-blue-600 transition">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.514" /></svg>
-                    Membantu ({review.helpful || 12})
-                  </button>
+                  {review.comment ? (
+                    <p className="text-gray-700 text-sm mt-2 leading-relaxed">{review.comment}</p>
+                  ) : (
+                    <p className="text-gray-400 text-sm mt-2 italic">Tidak ada ulasan tertulis.</p>
+                  )}
                 </div>
               </div>
             ))}
@@ -838,6 +1141,21 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
           onSuccess={handleCheckoutSuccess}
         />
       )}
+
+      {/* Barter Modal */}
+      {isBarterOpen && product && (
+        <BarterModal
+          product={product}
+          onClose={() => setIsBarterOpen(false)}
+          onSuccess={(barterId) => {
+            setIsBarterOpen(false);
+            showCheckoutToast("Tawaran Barter / Tukar Tambah berhasil dikirim ke penjual! 🔄", "success");
+            setTimeout(() => router.push("/purchases?tab=barters"), 1500);
+          }}
+        />
+      )}
+
+
 
       {isContactPopupOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
