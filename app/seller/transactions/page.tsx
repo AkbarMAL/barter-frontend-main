@@ -376,9 +376,9 @@ function BarterSellerList() {
     const getStatusInfo = (status: string) => {
         switch (status) {
             case "pending": case "seller_reviewing": return { text: "Perlu Direview", color: "bg-yellow-100 text-yellow-800" };
-            case "accepted": return { text: "Disetujui (Tunggu COD)", color: "bg-blue-100 text-blue-800" };
+            case "accepted": return { text: "Disetujui", color: "bg-blue-100 text-blue-800" };
             case "payment_pending": return { text: "Menunggu Bayar Selisih", color: "bg-orange-100 text-orange-800" };
-            case "payment_confirmed": return { text: "Pembayaran Dikonfirmasi (Tunggu COD)", color: "bg-blue-100 text-blue-800" };
+            case "payment_confirmed": return { text: "Pembayaran Dikonfirmasi", color: "bg-blue-100 text-blue-800" };
             case "completed": return { text: "Selesai", color: "bg-green-100 text-green-800" };
             case "cancelled": return { text: "Dibatalkan Pembeli", color: "bg-red-100 text-red-800" };
             case "rejected": return { text: "Anda Tolak", color: "bg-red-100 text-red-800" };
@@ -612,7 +612,7 @@ export default function SellerTransactionsPage() {
 
     // Stats
     const totalPendapatan = transactions
-        .filter(t => t.status === "completed")
+        .filter(t => t.status === "completed" || t.status === "cod_completed")
         .reduce((sum, t) => sum + (t.total_price ?? 0), 0);
 
     const filteredTransactions = transactions.filter(t => {
@@ -734,7 +734,7 @@ export default function SellerTransactionsPage() {
                                         <p className="text-sm font-medium text-gray-600">Selesai</p>
                                     </div>
                                     <p className="text-2xl font-bold text-gray-800 pl-1">
-                                        {transactions.filter(t => t.status === "completed").length}
+                                        {transactions.filter(t => t.status === "completed" || t.status === "cod_completed").length}
                                     </p>
                                 </div>
 

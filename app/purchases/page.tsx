@@ -63,6 +63,7 @@ function getStatusColor(status: string) {
     case "processing": return "bg-indigo-100 text-indigo-800";
     case "shipped": return "bg-purple-100 text-purple-800";
     case "delivered": return "bg-teal-100 text-teal-800";
+    case "cod_completed":
     case "completed": return "bg-green-100 text-green-800";
     case "refund_requested": return "bg-orange-100 text-orange-800";
     case "cancelled": return "bg-red-100 text-red-800";
@@ -81,6 +82,7 @@ function getStatusText(status: string) {
     refund_requested: "Refund Diajukan",
     cancelled: "Dibatalkan",
     cod_waiting: "Menunggu COD",
+    cod_completed: "COD Selesai",
   };
   return map[status] ?? status;
 }
@@ -132,9 +134,8 @@ function StarRatingInput({ value, onChange }: { value: number; onChange: (v: num
           className="transition-transform hover:scale-110 focus:outline-none"
         >
           <svg
-            className={`w-10 h-10 transition-colors drop-shadow-sm ${
-              star <= (hover || value) ? "text-yellow-400" : "text-gray-200"
-            }`}
+            className={`w-10 h-10 transition-colors drop-shadow-sm ${star <= (hover || value) ? "text-yellow-400" : "text-gray-200"
+              }`}
             fill="currentColor"
             viewBox="0 0 24 24"
           >
@@ -575,9 +576,9 @@ function BarterHistoryList() {
   ];
 
   const filtered = filter === "all" ? barters : barters.filter(b => {
-     if (filter === "cancelled") return ["cancelled", "rejected"].includes(b.status);
-     if (filter === "completed") return ["completed", "payment_confirmed", "accepted"].includes(b.status);
-     return b.status === filter;
+    if (filter === "cancelled") return ["cancelled", "rejected"].includes(b.status);
+    if (filter === "completed") return ["completed", "payment_confirmed", "accepted"].includes(b.status);
+    return b.status === filter;
   });
 
   const getBarterStatusText = (status: string) => {
@@ -615,8 +616,8 @@ function BarterHistoryList() {
       if (res.data.success) {
         fetchBarters();
       }
-    } catch { 
-      alert("Gagal membatalkan barter."); 
+    } catch {
+      alert("Gagal membatalkan barter.");
     }
   };
 
@@ -626,85 +627,85 @@ function BarterHistoryList() {
       if (res.data.success && res.data.data?.snap_token) {
         window.location.href = res.data.data.redirect_url;
       }
-    } catch { 
-      alert("Gagal memanggil pembayaran."); 
+    } catch {
+      alert("Gagal memanggil pembayaran.");
     }
   };
 
   return (
     <div className="mt-4">
-        {/* Barter Filter Tabs */}
-        <div className="flex gap-2 mb-6 flex-wrap">
-          {barterFilters.map((f) => (
-            <button
-              key={f.value}
-              onClick={() => setFilter(f.value)}
-              className={`px-4 py-1.5 rounded-full text-sm font-semibold transition
+      {/* Barter Filter Tabs */}
+      <div className="flex gap-2 mb-6 flex-wrap">
+        {barterFilters.map((f) => (
+          <button
+            key={f.value}
+            onClick={() => setFilter(f.value)}
+            className={`px-4 py-1.5 rounded-full text-sm font-semibold transition
                 ${filter === f.value ? "bg-blue-500 text-white shadow" : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"}`}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
 
-        {loading ? (
-          <div className="flex justify-center py-24"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500"/></div>
-        ) : error ? (
-          <div className="text-center py-20 bg-white rounded-3xl border border-red-100 text-red-500 font-semibold shadow-sm">{error}</div>
-        ) : filtered.length === 0 ? (
-          <div className="text-center py-20 bg-white rounded-3xl border border-gray-100 shadow-sm">
-            <div className="text-5xl mb-4">🔄</div>
-            <h3 className="text-lg font-bold text-gray-900">Belum ada barter aktif</h3>
-            <p className="text-gray-500 mt-2 text-sm">Temukan barang di marketplace dan mulai tukar tambah!</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {filtered.map(b => {
-              const imgPath = b.product?.images?.[0]?.image_path;
-              const productImg = imgPath ? getStorageUrl(imgPath) : null;
-              const selisih = Number(b.offer_additional_price);
-              
-              return (
-                <div key={b.id} className="bg-white rounded-2xl border border-gray-100 p-5 flex flex-col md:flex-row gap-5 shadow-sm hover:shadow-md transition">
-                  {productImg && <img src={productImg} alt="Produk" className="w-24 h-24 object-cover rounded-xl shrink-0 border" />}
-                  <div className="flex-1 space-y-2">
-                     <div className="flex items-center gap-2 mb-1">
-                       <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${getBarterStatusColor(b.status)}`}>
-                         {getBarterStatusText(b.status)}
-                       </span>
-                       <span className="text-xs text-gray-400 font-mono">ID: {b.id} • {formatDate(b.created_at)}</span>
-                     </div>
-                     <h3 className="font-bold text-gray-900 text-lg">Incaran: {b.product?.title}</h3>
-                     <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-xl border border-gray-100">
-                        <p><span className="font-semibold text-gray-800">Barang ditawarkan:</span> {b.offer_item_name}</p>
-                        {selisih > 0 && (
-                          <p><span className="font-semibold text-gray-800">Menawarkan selisih:</span> <span className="text-orange-600 font-bold">{formatRupiah(selisih)}</span></p>
-                        )}
-                        <p className="mt-1 text-xs text-gray-500 italic">"{b.offer_description}"</p>
-                     </div>
+      {loading ? (
+        <div className="flex justify-center py-24"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500" /></div>
+      ) : error ? (
+        <div className="text-center py-20 bg-white rounded-3xl border border-red-100 text-red-500 font-semibold shadow-sm">{error}</div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-20 bg-white rounded-3xl border border-gray-100 shadow-sm">
+          <div className="text-5xl mb-4">🔄</div>
+          <h3 className="text-lg font-bold text-gray-900">Belum ada barter aktif</h3>
+          <p className="text-gray-500 mt-2 text-sm">Temukan barang di marketplace dan mulai tukar tambah!</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {filtered.map(b => {
+            const imgPath = b.product?.images?.[0]?.image_path;
+            const productImg = imgPath ? getStorageUrl(imgPath) : null;
+            const selisih = Number(b.offer_additional_price);
+
+            return (
+              <div key={b.id} className="bg-white rounded-2xl border border-gray-100 p-5 flex flex-col md:flex-row gap-5 shadow-sm hover:shadow-md transition">
+                {productImg && <img src={productImg} alt="Produk" className="w-24 h-24 object-cover rounded-xl shrink-0 border" />}
+                <div className="flex-1 space-y-2">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${getBarterStatusColor(b.status)}`}>
+                      {getBarterStatusText(b.status)}
+                    </span>
+                    <span className="text-xs text-gray-400 font-mono">ID: {b.id} • {formatDate(b.created_at)}</span>
                   </div>
-                  <div className="flex flex-col gap-2 shrink-0 justify-center">
-                     {["pending", "seller_reviewing"].includes(b.status) && (
-                       <button onClick={() => handleCancel(b.id)} className="px-4 py-2 text-sm border-2 border-red-100 text-red-500 rounded-xl hover:bg-red-50 font-bold transition">
-                         Batalkan Barter
-                       </button>
-                     )}
-                     {b.status === "payment_pending" && (
-                       <button onClick={() => handlePay(b.id)} className="px-5 py-2.5 text-sm bg-orange-500 text-white rounded-xl hover:bg-orange-600 font-bold shadow-sm transition">
-                         Bayar Selisih
-                       </button>
-                     )}
-                     {b.seller_note && (
-                       <div className="text-xs text-orange-700 bg-orange-50 p-2 rounded max-w-[200px]">
-                         <span className="font-bold">Balasan Penjual:</span> {b.seller_note}
-                       </div>
-                     )}
+                  <h3 className="font-bold text-gray-900 text-lg">Incaran: {b.product?.title}</h3>
+                  <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                    <p><span className="font-semibold text-gray-800">Barang ditawarkan:</span> {b.offer_item_name}</p>
+                    {selisih > 0 && (
+                      <p><span className="font-semibold text-gray-800">Menawarkan selisih:</span> <span className="text-orange-600 font-bold">{formatRupiah(selisih)}</span></p>
+                    )}
+                    <p className="mt-1 text-xs text-gray-500 italic">"{b.offer_description}"</p>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
+                <div className="flex flex-col gap-2 shrink-0 justify-center">
+                  {["pending", "seller_reviewing"].includes(b.status) && (
+                    <button onClick={() => handleCancel(b.id)} className="px-4 py-2 text-sm border-2 border-red-100 text-red-500 rounded-xl hover:bg-red-50 font-bold transition">
+                      Batalkan
+                    </button>
+                  )}
+                  {b.status === "payment_pending" && (
+                    <button onClick={() => handlePay(b.id)} className="px-5 py-2.5 text-sm bg-orange-500 text-white rounded-xl hover:bg-orange-600 font-bold shadow-sm transition">
+                      Bayar Selisih
+                    </button>
+                  )}
+                  {b.seller_note && (
+                    <div className="text-xs text-orange-700 bg-orange-50 p-2 rounded max-w-[200px]">
+                      <span className="font-bold">Balasan Penjual:</span> {b.seller_note}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -812,7 +813,7 @@ export default function PurchasesPage() {
     };
 
     syncStatus();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
   const handleRefundSuccess = (txId: number) => {
     setRefundModal(null);
@@ -841,10 +842,10 @@ export default function PurchasesPage() {
   };
 
   const canRefund = (t: ApiTransaction) =>
-    ["delivered", "completed"].includes(t.status);
+    ["delivered", "completed", "cod_completed"].includes(t.status);
 
   const canRate = (t: ApiTransaction) =>
-    t.status === "completed" && !ratedTxIds.has(t.id);
+    (t.status === "completed" || t.status === "cod_completed") && !ratedTxIds.has(t.id);
 
   const handleRatingSuccess = (txId: number) => {
     setRatingModal(null);
@@ -897,16 +898,17 @@ export default function PurchasesPage() {
     }
   };
 
-  const filtered = transactions.filter((t) =>
-    filter === "all" ? true : t.status === filter
-  );
+  const filtered = transactions.filter((t) => {
+    if (filter === "all") return true;
+    if (filter === "completed") return t.status === "completed" || t.status === "cod_completed";
+    return t.status === filter;
+  });
 
   const filters = [
     { label: "Semua", value: "all" },
     { label: "Menunggu Bayar", value: "pending" },
     { label: "Diproses", value: "processing" },
     { label: "Dikirim", value: "shipped" },
-    { label: "Terkirim", value: "delivered" },
     { label: "Selesai", value: "completed" },
     { label: "Refund", value: "refund_requested" },
     { label: "Dibatalkan", value: "cancelled" },
@@ -914,286 +916,284 @@ export default function PurchasesPage() {
 
   return (
     <ProtectedRoute>
-  <div className="flex min-h-screen w-full bg-white font-sans">
+      <div className="flex min-h-screen w-full bg-white font-sans">
 
-      {/* Toast */}
-      {toast && (
-        <div className={`fixed top-5 right-5 z-50 px-5 py-3 rounded-xl shadow-lg text-white text-sm font-semibold transition
+        {/* Toast */}
+        {toast && (
+          <div className={`fixed top-5 right-5 z-50 px-5 py-3 rounded-xl shadow-lg text-white text-sm font-semibold transition
           ${toast.type === "success" ? "bg-green-500" : "bg-red-500"}`}>
-          {toast.msg}
-        </div>
-      )}
-
-      {/* Syncing overlay — saat cek status ke Midtrans */}
-      {syncing && (
-        <div className="fixed inset-0 z-40 bg-black/20 flex items-center justify-center">
-          <div className="bg-white rounded-2xl shadow-xl px-8 py-6 flex flex-col items-center gap-3">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500" />
-            <p className="text-sm font-semibold text-gray-700">Mengkonfirmasi pembayaran...</p>
+            {toast.msg}
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Rating Modal */}
-      {ratingModal && (
-        <RatingModal
-          transaction={ratingModal}
-          onClose={() => setRatingModal(null)}
-          onSuccess={handleRatingSuccess}
-        />
-      )}
-
-      {/* Refund Modal */}
-      {refundModal && (
-        <RefundModal
-          transaction={refundModal}
-          onClose={() => setRefundModal(null)}
-          onSuccess={handleRefundSuccess}
-        />
-      )}
-
-      {/* Sidebar */}
-      <div className="w-64 bg-white border-r p-4 hidden md:flex flex-col justify-between fixed h-screen z-10">
-        <div>
-          <h1 className="text-2xl font-bold text-blue-500 tracking-wide">RatheR</h1>
-          <nav className="mt-8 space-y-2">
-            {buyerMenus.map((item) => (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium transition-colors
-                  ${pathname === item.href ? "bg-blue-50 text-blue-600" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"}`}
-              >
-                <span>{item.name}</span>
-              </Link>
-            ))}
-          </nav>
-        </div>
-        <SidebarProfile user={user} />
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 md:ml-64 p-6 bg-gray-50 min-h-screen">
-
-        {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between gap-4 mb-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Aktivitas Belanja</h1>
-              <p className="text-gray-500 text-sm mt-1">Pantau status pembelian dan ajukan refund jika diperlukan.</p>
+        {/* Syncing overlay — saat cek status ke Midtrans */}
+        {syncing && (
+          <div className="fixed inset-0 z-40 bg-black/20 flex items-center justify-center">
+            <div className="bg-white rounded-2xl shadow-xl px-8 py-6 flex flex-col items-center gap-3">
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500" />
+              <p className="text-sm font-semibold text-gray-700">Mengkonfirmasi pembayaran...</p>
             </div>
-            <div className="flex items-center gap-3">
-              <Link
-                href="/purchases/refunds"
-                className="text-sm font-semibold text-orange-600 border border-orange-200 bg-orange-50 rounded-xl px-4 py-2 hover:bg-orange-100 transition"
-              >
-                📋 Riwayat Refund
-              </Link>
+          </div>
+        )}
+
+        {/* Rating Modal */}
+        {ratingModal && (
+          <RatingModal
+            transaction={ratingModal}
+            onClose={() => setRatingModal(null)}
+            onSuccess={handleRatingSuccess}
+          />
+        )}
+
+        {/* Refund Modal */}
+        {refundModal && (
+          <RefundModal
+            transaction={refundModal}
+            onClose={() => setRefundModal(null)}
+            onSuccess={handleRefundSuccess}
+          />
+        )}
+
+        {/* Sidebar */}
+        <div className="w-64 bg-white border-r p-4 hidden md:flex flex-col justify-between fixed h-screen z-10">
+          <div>
+            <h1 className="text-2xl font-bold text-blue-500 tracking-wide">RatheR</h1>
+            <nav className="mt-8 space-y-2">
+              {buyerMenus.map((item) => (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium transition-colors
+                  ${pathname === item.href ? "bg-blue-50 text-blue-600" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"}`}
+                >
+                  <span>{item.name}</span>
+                </Link>
+              ))}
+            </nav>
+          </div>
+          <SidebarProfile user={user} />
+        </div>
+
+        {/* Main Content */}
+        <div className="flex-1 md:ml-64 p-6 bg-gray-50 min-h-screen">
+
+          {/* Header */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between gap-4 mb-4">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Aktivitas Belanja</h1>
+                <p className="text-gray-500 text-sm mt-1">Pantau status pembelian dan ajukan refund jika diperlukan.</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Link
+                  href="/purchases/refunds"
+                  className="text-sm font-semibold text-orange-600 border border-orange-200 bg-orange-50 rounded-xl px-4 py-2 hover:bg-orange-100 transition"
+                >
+                  📋 Riwayat Refund
+                </Link>
+                <button
+                  onClick={fetchTransactions}
+                  disabled={loading}
+                  className="text-sm font-semibold text-blue-600 border border-blue-200 rounded-xl px-4 py-2 hover:bg-blue-50 disabled:opacity-50 transition"
+                >
+                  {loading ? "Memuat…" : "↻ Refresh"}
+                </button>
+              </div>
+            </div>
+
+            {/* Main Toggle Bar */}
+            <div className="flex gap-6 border-b border-gray-200">
               <button
-                onClick={fetchTransactions}
-                disabled={loading}
-                className="text-sm font-semibold text-blue-600 border border-blue-200 rounded-xl px-4 py-2 hover:bg-blue-50 disabled:opacity-50 transition"
+                onClick={() => setActiveTab("purchases")}
+                className={`pb-3 text-sm font-bold border-b-2 transition ${activeTab === "purchases" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-400 hover:text-gray-600"
+                  }`}
               >
-                {loading ? "Memuat…" : "↻ Refresh"}
+                Pembelian Reguler
+              </button>
+              <button
+                onClick={() => setActiveTab("barters")}
+                className={`pb-3 text-sm font-bold border-b-2 transition ${activeTab === "barters" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-400 hover:text-gray-600"
+                  }`}
+              >
+                Tukar Tambah (Barter)
               </button>
             </div>
           </div>
-          
-          {/* Main Toggle Bar */}
-          <div className="flex gap-6 border-b border-gray-200">
-            <button
-              onClick={() => setActiveTab("purchases")}
-              className={`pb-3 text-sm font-bold border-b-2 transition ${
-                activeTab === "purchases" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-400 hover:text-gray-600"
-              }`}
-            >
-              Pembelian Reguler
-            </button>
-            <button
-              onClick={() => setActiveTab("barters")}
-              className={`pb-3 text-sm font-bold border-b-2 transition ${
-                activeTab === "barters" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-400 hover:text-gray-600"
-              }`}
-            >
-              Tukar Tambah (Barter)
-            </button>
-          </div>
-        </div>
 
-        {activeTab === "purchases" ? (
-          <>
-            {/* Filter Tabs */}
-            <div className="flex gap-2 mb-6 flex-wrap">
-              {filters.map((f) => (
-                <button
-                  key={f.value}
-                  onClick={() => setFilter(f.value)}
-                  className={`px-4 py-1.5 rounded-full text-sm font-semibold transition
+          {activeTab === "purchases" ? (
+            <>
+              {/* Filter Tabs */}
+              <div className="flex gap-2 mb-6 flex-wrap">
+                {filters.map((f) => (
+                  <button
+                    key={f.value}
+                    onClick={() => setFilter(f.value)}
+                    className={`px-4 py-1.5 rounded-full text-sm font-semibold transition
                     ${filter === f.value ? "bg-blue-500 text-white shadow" : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"}`}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
 
-        {/* Content */}
-        {loading ? (
-          <div className="flex justify-center py-24">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500" />
-          </div>
-        ) : error ? (
-          <div className="text-center py-20 bg-white rounded-3xl border border-red-100 shadow-sm">
-            <p className="text-red-500 font-semibold">{error}</p>
-            <button onClick={fetchTransactions} className="mt-4 text-sm text-blue-500 underline">Coba lagi</button>
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="text-center py-20 bg-white rounded-3xl border border-gray-100 shadow-sm">
-            <div className="text-5xl mb-4">🛍️</div>
-            <h3 className="text-lg font-bold text-gray-900">Belum ada transaksi</h3>
-            <p className="text-gray-500 mt-2 text-sm">Yuk mulai belanja di marketplace kami!</p>
-            <Link href="/" className="mt-4 inline-block text-sm font-semibold text-blue-600 border border-blue-200 rounded-xl px-5 py-2 hover:bg-blue-50">
-              Jelajahi Produk
-            </Link>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {filtered.map((t) => {
-              const imgPath = t.product?.images?.[0]?.image_path;
-              const productImg = imgPath ? getStorageUrl(imgPath) : null;
-
-              return (
-                <div key={t.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
-
-                  {/* Card Header */}
-                  <div className="bg-gray-50 border-b border-gray-100 px-5 py-3 flex items-center justify-between flex-wrap gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs text-gray-500">{t.transaction_code}</span>
-                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${getStatusColor(t.status)}`}>
-                        {getStatusText(t.status)}
-                      </span>
-                    </div>
-                    <span className="text-xs text-gray-400">{formatDate(t.created_at)}</span>
-                  </div>
-
-                  <div className="p-5 flex gap-4 items-start">
-                    {/* Product Image */}
-                    {productImg ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={productImg}
-                        alt={t.product?.title ?? "Produk"}
-                        className="w-20 h-20 object-cover rounded-xl border border-gray-100 flex-shrink-0"
-                      />
-                    ) : (
-                      <div className="w-20 h-20 bg-gray-100 rounded-xl flex-shrink-0 flex items-center justify-center text-2xl">🛍️</div>
-                    )}
-
-                    {/* Details */}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-gray-900 text-base line-clamp-2 leading-snug">
-                        {t.product?.title ?? `Transaksi #${t.transaction_code}`}
-                      </h3>
-                      {t.seller && (
-                        <p className="text-xs text-gray-500 mt-1">Penjual: <span className="font-medium text-gray-700">{t.seller.name}</span></p>
-                      )}
-                      <p className="text-sm font-bold text-blue-600 mt-2">{formatRupiah(t.final_amount ?? t.total_price)}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">{t.type === "cod" ? "Cash on Delivery" : "Rekening Bersama"}</p>
-                    </div>
-                  </div>
-
-                  {/* Footer Actions */}
-                  <div className="border-t border-gray-100 px-5 py-3 flex justify-end gap-3 flex-wrap bg-white">
-                    {confirmLoading === t.id ? (
-                      <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-teal-500" />
-                        Mengkonfirmasi…
-                      </div>
-                    ) : paymentLoading === t.id ? (
-                      <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500" />
-                        Memuat pembayaran…
-                      </div>
-                    ) : cancelLoading === t.id ? (
-                      <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-400" />
-                        Membatalkan…
-                      </div>
-                    ) : t.status === "refund_requested" ? (
-                      <Link
-                        href="/purchases/refunds"
-                        className="text-sm font-semibold text-orange-600 border border-orange-200 rounded-xl px-4 py-2 hover:bg-orange-50 transition"
-                      >
-                        Lihat Status Refund
-                      </Link>
-                    ) : (
-                      <>
-                        {/* Bayar Sekarang — untuk rekber yang masih pending */}
-                        {canPay(t) && (
-                          <button
-                            id={`pay-btn-${t.id}`}
-                            onClick={() => handlePayNow(t)}
-                            className="text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl px-4 py-2 transition shadow-sm flex items-center gap-1.5"
-                          >
-                            💳 Bayar Sekarang
-                          </button>
-                        )}
-                        {/* Batalkan Pesanan — untuk rekber yang masih pending */}
-                        {canCancel(t) && (
-                          <button
-                            onClick={() => handleCancelOrder(t)}
-                            className="text-sm font-bold text-red-600 border border-red-200 hover:bg-red-50 rounded-xl px-4 py-2 transition"
-                          >
-                            ✕ Batalkan Pesanan
-                          </button>
-                        )}
-                        {/* Konfirmasi Terima — untuk status shipped/delivered */}
-                        {canConfirm(t) && (
-                          <button
-                            onClick={() => handleConfirmReceived(t.id)}
-                            className="text-sm font-bold text-white bg-teal-500 hover:bg-teal-600 rounded-xl px-4 py-2 transition shadow-sm"
-                          >
-                            ✓ Konfirmasi Barang Diterima
-                          </button>
-                        )}
-                        {/* Ajukan Refund — untuk status delivered/completed */}
-                        {canRefund(t) && (
-                          <button
-                            onClick={() => setRefundModal(t)}
-                            className="text-sm font-bold text-white bg-red-500 hover:bg-red-600 rounded-xl px-4 py-2 transition shadow-sm"
-                          >
-                            Ajukan Refund
-                          </button>
-                        )}
-                        {/* Beri Rating — untuk transaksi selesai yang belum dirating */}
-                        {canRate(t) && (
-                          <button
-                            onClick={() => setRatingModal(t)}
-                            className="text-sm font-bold text-yellow-700 bg-yellow-50 border border-yellow-300 hover:bg-yellow-100 rounded-xl px-4 py-2 transition"
-                          >
-                            ⭐ Beri Rating
-                          </button>
-                        )}
-                        {ratedTxIds.has(t.id) && t.status === "completed" && (
-                          <span className="text-sm text-green-600 font-semibold flex items-center gap-1">
-                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                            Sudah Dirating
-                          </span>
-                        )}
-                      </>
-                    )}
-                  </div>
+              {/* Content */}
+              {loading ? (
+                <div className="flex justify-center py-24">
+                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500" />
                 </div>
-              );
-            })}
-          </div>
-        )}
-        </>
-        ) : (
-          <BarterHistoryList />
-        )}
+              ) : error ? (
+                <div className="text-center py-20 bg-white rounded-3xl border border-red-100 shadow-sm">
+                  <p className="text-red-500 font-semibold">{error}</p>
+                  <button onClick={fetchTransactions} className="mt-4 text-sm text-blue-500 underline">Coba lagi</button>
+                </div>
+              ) : filtered.length === 0 ? (
+                <div className="text-center py-20 bg-white rounded-3xl border border-gray-100 shadow-sm">
+                  <div className="text-5xl mb-4">🛍️</div>
+                  <h3 className="text-lg font-bold text-gray-900">Belum ada transaksi</h3>
+                  <p className="text-gray-500 mt-2 text-sm">Yuk mulai belanja di marketplace kami!</p>
+                  <Link href="/" className="mt-4 inline-block text-sm font-semibold text-blue-600 border border-blue-200 rounded-xl px-5 py-2 hover:bg-blue-50">
+                    Jelajahi Produk
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {filtered.map((t) => {
+                    const imgPath = t.product?.images?.[0]?.image_path;
+                    const productImg = imgPath ? getStorageUrl(imgPath) : null;
 
+                    return (
+                      <div key={t.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+
+                        {/* Card Header */}
+                        <div className="bg-gray-50 border-b border-gray-100 px-5 py-3 flex items-center justify-between flex-wrap gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs text-gray-500">{t.transaction_code}</span>
+                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${getStatusColor(t.status)}`}>
+                              {getStatusText(t.status)}
+                            </span>
+                          </div>
+                          <span className="text-xs text-gray-400">{formatDate(t.created_at)}</span>
+                        </div>
+
+                        <div className="p-5 flex gap-4 items-start">
+                          {/* Product Image */}
+                          {productImg ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={productImg}
+                              alt={t.product?.title ?? "Produk"}
+                              className="w-20 h-20 object-cover rounded-xl border border-gray-100 flex-shrink-0"
+                            />
+                          ) : (
+                            <div className="w-20 h-20 bg-gray-100 rounded-xl flex-shrink-0 flex items-center justify-center text-2xl">🛍️</div>
+                          )}
+
+                          {/* Details */}
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-bold text-gray-900 text-base line-clamp-2 leading-snug">
+                              {t.product?.title ?? `Transaksi #${t.transaction_code}`}
+                            </h3>
+                            {t.seller && (
+                              <p className="text-xs text-gray-500 mt-1">Penjual: <span className="font-medium text-gray-700">{t.seller.name}</span></p>
+                            )}
+                            <p className="text-sm font-bold text-blue-600 mt-2">{formatRupiah(t.final_amount ?? t.total_price)}</p>
+                            <p className="text-xs text-gray-400 mt-0.5">{t.type === "cod" ? "Cash on Delivery" : "Rekening Bersama"}</p>
+                          </div>
+                        </div>
+
+                        {/* Footer Actions */}
+                        <div className="border-t border-gray-100 px-5 py-3 flex justify-end gap-3 flex-wrap bg-white">
+                          {confirmLoading === t.id ? (
+                            <div className="flex items-center gap-2 text-sm text-gray-500">
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-teal-500" />
+                              Mengkonfirmasi…
+                            </div>
+                          ) : paymentLoading === t.id ? (
+                            <div className="flex items-center gap-2 text-sm text-gray-500">
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500" />
+                              Memuat pembayaran…
+                            </div>
+                          ) : cancelLoading === t.id ? (
+                            <div className="flex items-center gap-2 text-sm text-gray-500">
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-400" />
+                              Membatalkan…
+                            </div>
+                          ) : t.status === "refund_requested" ? (
+                            <Link
+                              href="/purchases/refunds"
+                              className="text-sm font-semibold text-orange-600 border border-orange-200 rounded-xl px-4 py-2 hover:bg-orange-50 transition"
+                            >
+                              Lihat Status Refund
+                            </Link>
+                          ) : (
+                            <>
+                              {/* Bayar Sekarang — untuk rekber yang masih pending */}
+                              {canPay(t) && (
+                                <button
+                                  id={`pay-btn-${t.id}`}
+                                  onClick={() => handlePayNow(t)}
+                                  className="text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl px-4 py-2 transition shadow-sm flex items-center gap-1.5"
+                                >
+                                  💳 Bayar Sekarang
+                                </button>
+                              )}
+                              {/* Batalkan Pesanan — untuk rekber yang masih pending */}
+                              {canCancel(t) && (
+                                <button
+                                  onClick={() => handleCancelOrder(t)}
+                                  className="text-sm font-bold text-red-600 border border-red-200 hover:bg-red-50 rounded-xl px-4 py-2 transition"
+                                >
+                                  ✕ Batalkan Pesanan
+                                </button>
+                              )}
+                              {/* Konfirmasi Terima — untuk status shipped/delivered */}
+                              {canConfirm(t) && (
+                                <button
+                                  onClick={() => handleConfirmReceived(t.id)}
+                                  className="text-sm font-bold text-white bg-teal-500 hover:bg-teal-600 rounded-xl px-4 py-2 transition shadow-sm"
+                                >
+                                  ✓ Konfirmasi Barang Diterima
+                                </button>
+                              )}
+                              {/* Ajukan Refund — untuk status delivered/completed */}
+                              {canRefund(t) && (
+                                <button
+                                  onClick={() => setRefundModal(t)}
+                                  className="text-sm font-bold text-white bg-red-500 hover:bg-red-600 rounded-xl px-4 py-2 transition shadow-sm"
+                                >
+                                  Ajukan Refund
+                                </button>
+                              )}
+                              {/* Beri Rating — untuk transaksi selesai yang belum dirating */}
+                              {canRate(t) && (
+                                <button
+                                  onClick={() => setRatingModal(t)}
+                                  className="text-sm font-bold text-yellow-700 bg-yellow-50 border border-yellow-300 hover:bg-yellow-100 rounded-xl px-4 py-2 transition"
+                                >
+                                  ⭐ Beri Rating
+                                </button>
+                              )}
+                              {ratedTxIds.has(t.id) && t.status === "completed" && (
+                                <span className="text-sm text-green-600 font-semibold flex items-center gap-1">
+                                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                  Sudah Dirating
+                                </span>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          ) : (
+            <BarterHistoryList />
+          )}
+
+        </div>
       </div>
-    </div>
-  </ProtectedRoute>
+    </ProtectedRoute>
   );
 }
