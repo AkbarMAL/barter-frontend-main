@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, use, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef, use } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -14,24 +14,6 @@ import {
 
 const BASE_URL = "http://127.0.0.1:8000/api/v1";
 
-// ================= DUMMY DATA =================
-const dummyPromoted = [
-  { id: "p1", title: "iPhone 11 Pro Gold - Mulus Fullset", price: 6500000, condition: "Bekas - Sangat Baik", image: "https://images.unsplash.com/photo-1591337676887-a217a6970a8a?w=1200&q=80", location: "Jakarta Selatan", rating: 4.8, description: "iPhone 11 Pro eks garansi iBox, body mulus 99%, battery health awet 92%. Semua fungsi normal face ID ON, true tone ON." },
-  { id: "p2", title: "Laptop ASUS VivoBook - Intel Core i5", price: 7200000, condition: "Bekas - Pemakaian", image: "https://images.unsplash.com/photo-1593642702749-b7d2a804fbcf?w=1200&q=80", location: "Bandung", rating: 4.5, description: "Laptop asus siap pakai kerja dan nugas. Spesifikasi Core i5 gen 10 RAM 8GB SSD 512GB mulus." },
-  { id: "p3", title: "Kulkas AQUA 1 Pintu Motif Bunga", price: 1100000, condition: "Bekas - Pemakaian", image: "https://images.unsplash.com/photo-1584568694244-14fbdf83bd30?w=1200&q=80", location: "Surabaya", rating: 4.9, description: "Masih sangat dingin, freezer aman tanpa lecet parah. Body samping sedikit baret wajar." },
-  { id: "p4", title: "Sony WH-1000XM4 Headphones", price: 3500000, condition: "Bekas - Seperti Baru", image: "https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb?w=1200&q=80", location: "Jakarta Barat", rating: 5.0, description: "Headphone noise-cancelling premium dalam kondisi sempurna, sangat terawat tanpa cacat dan berfungsi normal. Kualitas suara jernih dengan fitur peredam bising yang optimal, nyaman digunakan untuk berbagai aktivitas." },
-];
-
-const dummyRecommendations = [
-  { id: "r1", title: "MacBook Pro 14\" M1 Pro 2021", price: 25000000, condition: "Bekas - Seperti Baru", image: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=1200&q=80", location: "Bandung", rating: 4.9, description: "CC sangat rendah. Jarang dipakai nge-render berat." },
-  { id: "r2", title: "Meja Kayu Minimalis Aesthetic", price: 1500000, condition: "Bekas - Bagus", image: "https://images.unsplash.com/photo-1592078615290-033ee584e267?w=1200&q=80", location: "Surabaya", rating: 4.7, description: "Kuat kokoh dan estetik. Bahan kayu jati belanda." },
-  { id: "r3", title: "Nike Air Jordan 1 Mid Red", price: 1800000, condition: "Baru", image: "https://images.unsplash.com/photo-1549298916-b41d501d3772?w=1200&q=80", location: "Jakarta Pusat", rating: 4.8, description: "100% Original full tag. Belum pernah dipakai di luar." },
-  { id: "r4", title: "Kamera Canon EOS M50 Mark II", price: 7500000, condition: "Bekas - Sangat Baik", image: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=1200&q=80", location: "Yogyakarta", rating: 4.6, description: "Fungsi jepret sangat normal lancar jaya no minus no jamur." },
-];
-
-const allMockupProducts = [...dummyPromoted, ...dummyRecommendations];
-
-// ================= TYPES =================
 interface ApiProduct {
   id: string | number;
   title: string;
@@ -55,7 +37,116 @@ interface SellerRatings {
   reviews: any[];
 }
 
-// ─── Checkout Modal ──────────────────────────────────────────────────────────
+interface LocationSuggestion {
+  id: string;
+  label: string;
+  description: string;
+  latitude: number;
+  longitude: number;
+}
+
+function LocationAutocomplete({
+  value,
+  onChange,
+  onSelect,
+  placeholder = "Cari lokasi...",
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  onSelect: (location: LocationSuggestion) => void;
+  placeholder?: string;
+}) {
+  const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleSearch = async (query: string) => {
+    onChange(query);
+
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+
+    if (query.length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    setLoading(true);
+    timeoutRef.current = setTimeout(async () => {
+      try {
+        const response = await fetch(
+          `${BASE_URL}/locations/suggestions?q=${encodeURIComponent(query)}`,
+        );
+        const data = await response.json();
+
+        if (data.success) {
+          setSuggestions(data.suggestions || []);
+          setShowSuggestions(true);
+        } else {
+          setSuggestions([]);
+          setShowSuggestions(false);
+        }
+      } catch (error) {
+        console.error("Error fetching suggestions:", error);
+        setSuggestions([]);
+        setShowSuggestions(false);
+      } finally {
+        setLoading(false);
+      }
+    }, 300);
+  };
+
+  const handleSelect = (location: LocationSuggestion) => {
+    onChange(location.label);
+    onSelect(location);
+    setSuggestions([]);
+    setShowSuggestions(false);
+  };
+
+  const handleBlur = () => {
+    setTimeout(() => setShowSuggestions(false), 200);
+  };
+
+  return (
+    <div className="relative">
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => handleSearch(e.target.value)}
+        onFocus={() => value.length >= 2 && setShowSuggestions(true)}
+        onBlur={handleBlur}
+        placeholder={placeholder}
+        className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+      />
+
+      {loading && (
+        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+          <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
+
+      {showSuggestions && suggestions.length > 0 && (
+        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto z-10">
+          {suggestions.map((suggestion) => (
+            <div
+              key={suggestion.id}
+              className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+              onClick={() => handleSelect(suggestion)}
+            >
+              <div className="font-medium text-gray-900 text-sm">{suggestion.label}</div>
+              <div className="text-xs text-gray-500 mt-1">{suggestion.description}</div>
+              <div className="text-xs text-gray-400 mt-1">
+                📍 {suggestion.latitude.toFixed(4)}, {suggestion.longitude.toFixed(4)}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 interface CheckoutModalProps {
   product: any;
@@ -207,7 +298,7 @@ function CheckoutModal({ product, onClose, onSuccess }: CheckoutModalProps) {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Alamat Pengiriman *</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Alamat Pengiriman (Tambahkan detail alamat/patokan)*</label>
                 <textarea
                   rows={2}
                   value={address}
@@ -215,18 +306,22 @@ function CheckoutModal({ product, onClose, onSuccess }: CheckoutModalProps) {
                   placeholder="Jl. Contoh No. 1, RT/RW, Kelurahan, Kecamatan..."
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
                 />
+                <p className="text-xs text-gray-500 mt-1">Bisa diisi otomatis dari pencarian lokasi di bawah</p>
                 {errors.address && <p className="text-xs text-red-500 mt-1">{errors.address}</p>}
                 {errors.shipping_address && <p className="text-xs text-red-500 mt-1">{errors.shipping_address}</p>}
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Kota Tujuan *</label>
-                <input
-                  type="text"
+                <LocationAutocomplete
                   value={city}
-                  onChange={(e) => { setCity(e.target.value); setErrors(p => ({ ...p, city: "" })); }}
+                  onChange={(value) => { setCity(value); setErrors(p => ({ ...p, city: "" })); }}
+                  onSelect={(location) => {
+                    setCity(location.label);
+                    setAddress(location.description); // Auto-fill address from description
+                    setErrors((p) => ({ ...p, address: "", city: "" }));
+                  }}
                   placeholder="cth: Jakarta Selatan, Bandung, Surabaya"
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                 />
                 {errors.city && <p className="text-xs text-red-500 mt-1">{errors.city}</p>}
                 {errors.shipping_city && <p className="text-xs text-red-500 mt-1">{errors.shipping_city}</p>}
@@ -579,7 +674,6 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
 
   const [isLoading, setIsLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
-  const [isMockProduct, setIsMockProduct] = useState(false);
   const [sellerWhatsApp, setSellerWhatsApp] = useState<string>("");
   const [sellerSocialMedia, setSellerSocialMedia] = useState<{ name: string; url: string }[]>([]);
   const [isContactPopupOpen, setIsContactPopupOpen] = useState(false);
@@ -620,62 +714,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
 
   // Cek jika ID berawalan 'p' atau 'r'
   useEffect(() => {
-    const isMock = typeof id === 'string' && (id.startsWith('p') || id.startsWith('r'));
-    setIsMockProduct(isMock);
-
-    if (isMock) {
-      loadMockProduct(id);
-    } else {
-      loadRealProduct(id);
-    }
+    loadRealProduct(id);
   }, [id]);
-
-  const loadMockProduct = (id: string) => {
-    const found = allMockupProducts.find(p => p.id === id);
-    if (!found) {
-      setIsLoading(false);
-      return;
-    }
-
-    setProduct({
-      id: found.id,
-      title: found.title,
-      price: found.price,
-      condition: found.condition,
-      description: found.description,
-      image: found.image,
-      location: found.location,
-      sellerName: "Budi Santoso",
-      sellerRating: 4.7,
-      followers: 189,
-      totalProducts: 1
-    });
-    setSellerWhatsApp("6281234567890");
-    setSellerSocialMedia([
-      { name: "Instagram", url: "https://instagram.com/budi.santoso" },
-      { name: "Tokopedia", url: "https://www.tokopedia.com/budisantoso" },
-    ]);
-
-    setSellerStats({
-      average_rating: 5.0,
-      total_reviews: 3,
-      total_products: 1,
-      reviews: [
-        { id: 1, reviewer_name: "Rina Wati", rating: 5, comment: "Penjual ramah dan responsif. Barang sesuai deskripsi!", helpful: 12 },
-        { id: 2, reviewer_name: "Joko Widodo", rating: 4, comment: "Pengiriman cepat, packaging rapi. Recommended!", helpful: 12 },
-        { id: 3, reviewer_name: "Linda Hartono", rating: 5, comment: "Barang original dan kondisi sangat bagus. Terima kasih!", helpful: 12 }
-      ]
-    });
-
-    // Cek Local Storage untuk status favoritenya
-    const favStr = localStorage.getItem('mock_favorites');
-    if (favStr) {
-      const favSet = new Set(JSON.parse(favStr));
-      setIsFavorite(favSet.has(id));
-    }
-
-    setIsLoading(false);
-  };
 
   const loadRealProduct = async (id: string) => {
     try {
@@ -759,22 +799,6 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
   };
 
   const toggleFavorite = async () => {
-    // ── Logika Mockup ──
-    if (isMockProduct) {
-      const nextFav = !isFavorite;
-      setIsFavorite(nextFav);
-      const favStr = localStorage.getItem('mock_favorites');
-      let favSet = new Set<string>();
-      if (favStr) favSet = new Set(JSON.parse(favStr));
-
-      if (nextFav) favSet.add(id);
-      else favSet.delete(id);
-
-      localStorage.setItem('mock_favorites', JSON.stringify([...favSet]));
-      return;
-    }
-
-    // ── Logika Asli (API Back-End) ──
     const token = localStorage.getItem("token");
     if (!token) {
       alert("Silakan login terlebih dahulu untuk menyimpan favorit.");
@@ -919,10 +943,6 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
                       router.push("/login");
                       return;
                     }
-                    if (isMockProduct) {
-                      alert("Pembelian hanya tersedia untuk produk asli.");
-                      return;
-                    }
                     setIsCheckoutOpen(true);
                   }}
                   className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3.5 px-4 rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2 text-sm"
@@ -939,7 +959,6 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
                 onClick={() => {
                   const token = localStorage.getItem("token");
                   if (!token) { router.push("/login"); return; }
-                  if (isMockProduct) { alert("Pembelian/Barter hanya tersedia untuk produk asli."); return; }
                   setIsBarterOpen(true);
                 }}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2 text-sm"
@@ -1084,7 +1103,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
           </div>
 
           <div className="mt-8 space-y-6 max-w-4xl">
-            {sellerStats?.reviews?.length === 0 && !isMockProduct && (
+            {sellerStats?.reviews?.length === 0 && (
               <div className="text-center py-8 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
                 <p className="text-gray-400 text-sm">Belum ada ulasan untuk produk ini.</p>
               </div>
