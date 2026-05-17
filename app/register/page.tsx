@@ -86,7 +86,7 @@ export default function RegisterPage() {
 
         setTimeout(() => {
           if (user.is_seller) {
-            router.push("/seller");
+            window.location.href = "http://localhost:5173/dashboard";
           } else {
             router.push(redirectUrl);
           }

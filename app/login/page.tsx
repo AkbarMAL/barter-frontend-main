@@ -50,7 +50,7 @@ export default function LoginPage() {
         // Redirect based on user roles
         // If user is seller, redirect to seller dashboard, otherwise redirect to home or requested page
         if (user.is_seller) {
-          router.push("/seller");
+          window.location.href = "http://localhost:5173/dashboard";
         } else {
           router.push(redirectUrl);
         }

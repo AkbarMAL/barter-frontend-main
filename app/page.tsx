@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { HeartIcon } from "@heroicons/react/24/outline";
-import { HeartIcon as HeartIconSolid, StarIcon } from "@heroicons/react/24/solid";
-import { logout, isAuthenticated, getCurrentUser } from "@/services/authentication";
+import {
+  HeartIcon as HeartIconSolid,
+  StarIcon,
+} from "@heroicons/react/24/solid";
 import SidebarProfile from "@/components/sidebar-profile";
 
 const PRODUCT_API_BASE = "http://127.0.0.1:8000/api/v1";
@@ -20,6 +22,15 @@ type Category = {
   children?: Category[];
 };
 
+type ProductCardItem = {
+  id: string | number;
+  title: string;
+  price: number;
+  image: string;
+  location: string;
+  rating: number;
+};
+
 const fallbackIcons: Record<string, string> = {
   elektronik: "💻",
   fashion: "👕",
@@ -32,11 +43,14 @@ const fallbackIcons: Record<string, string> = {
 };
 
 function getCategoryIcon(category: Category) {
-  if (category.icon && category.icon.trim() !== "") return category.icon;
+  if (category.icon && category.icon.trim() !== "") {
+    return category.icon;
+  }
+
   return fallbackIcons[String(category.slug || "").toLowerCase()] || "📦";
 }
 
-function normalizeProduct(item: any) {
+function normalizeProduct(item: any): ProductCardItem {
   const firstImage =
     item.images?.[0]?.image_path ||
     item.images?.[0]?.image ||
@@ -54,7 +68,11 @@ function normalizeProduct(item: any) {
     title: item.title || item.name || item.product_name || "Produk",
     price: typeof item.price === "number" ? item.price : Number(item.price) || 0,
     image: imageUrl,
-    location: item.location_city || item.location || item.city || "Lokasi tidak diketahui",
+    location:
+      item.location_city ||
+      item.location ||
+      item.city ||
+      "Lokasi tidak diketahui",
     rating: item.rating || item.average_rating || 0,
   };
 }
@@ -63,82 +81,168 @@ export default function Dashboard() {
   const pathname = usePathname();
   const router = useRouter();
 
+  const [mounted, setMounted] = useState(false);
+
   const [isUserAuthenticated, setIsUserAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const [products, setProducts] = useState<any[]>([]);
+
+  const [products, setProducts] = useState<ProductCardItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [productsLoading, setProductsLoading] = useState(true);
+
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<ProductCardItem[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
+  const homepageCategories = useMemo(() => {
+    return categories.slice(0, 8);
+  }, [categories]);
+
+  const recommendedProducts = useMemo(() => {
+    return [...products].slice(0, 8);
+  }, [products]);
+
+  const loadAuthState = () => {
+    const token =
+      localStorage.getItem("token") || localStorage.getItem("auth_token");
+
+    const userStr = localStorage.getItem("current_user");
+
+    if (token && userStr) {
+      setIsUserAuthenticated(true);
+
+      try {
+        setCurrentUser(JSON.parse(userStr));
+      } catch {
+        setCurrentUser(null);
+      }
+    } else {
+      setIsUserAuthenticated(false);
+      setCurrentUser(null);
+    }
+  };
+
+  const loadFavorites = () => {
     const mockStr = localStorage.getItem("mock_favorites");
+
     if (mockStr) {
-      setFavorites(new Set(JSON.parse(mockStr)));
-    }
-
-    const authenticated = isAuthenticated();
-    setIsUserAuthenticated(authenticated);
-    if (authenticated) {
-      const user = getCurrentUser();
-      setCurrentUser(user);
-    }
-  }, []);
-
-  useEffect(() => {
-    const fetchProducts = async () => {
       try {
-        const res = await fetch(`${PRODUCT_API_BASE}/products`);
-        const json = await res.json();
-        if (json.success) {
-          const rawProducts = json.data?.data || json.data || [];
-          setProducts(rawProducts.map(normalizeProduct));
-        }
-      } catch (error) {
-        console.error("Failed to load products:", error);
+        setFavorites(new Set(JSON.parse(mockStr)));
+      } catch {
+        setFavorites(new Set());
       }
-    };
+    }
+  };
 
-    const fetchCategories = async () => {
-      try {
-        const res = await fetch(`${PRODUCT_API_BASE}/categories`, {
-          headers: {
-            Accept: "application/json",
-          },
-        });
+  const fetchProducts = async () => {
+    try {
+      setProductsLoading(true);
 
-        const json = await res.json();
-        if (json.success) {
-          setCategories(Array.isArray(json.data) ? json.data : []);
-        } else {
-          setCategories([]);
-        }
-      } catch (error) {
-        console.error("Failed to load categories:", error);
+      const res = await fetch(`${PRODUCT_API_BASE}/products`, {
+        cache: "no-store",
+      });
+
+      const json = await res.json();
+
+      if (json.success) {
+        const rawProducts = json.data?.data || json.data || [];
+        setProducts(rawProducts.map(normalizeProduct));
+      } else {
+        setProducts([]);
+      }
+    } catch (error) {
+      console.error("Failed to load products:", error);
+      setProducts([]);
+    } finally {
+      setProductsLoading(false);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      setCategoriesLoading(true);
+
+      const res = await fetch(`${PRODUCT_API_BASE}/categories`, {
+        cache: "no-store",
+        headers: {
+          Accept: "application/json",
+        },
+      });
+
+      const json = await res.json();
+
+      if (json.success) {
+        setCategories(Array.isArray(json.data) ? json.data : []);
+      } else {
         setCategories([]);
-      } finally {
-        setCategoriesLoading(false);
       }
-    };
+    } catch (error) {
+      console.error("Failed to load categories:", error);
+      setCategories([]);
+    } finally {
+      setCategoriesLoading(false);
+    }
+  };
 
+  const reloadPageState = () => {
+    loadAuthState();
+    loadFavorites();
     fetchProducts();
     fetchCategories();
+  };
+
+  useEffect(() => {
+    setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+
+    reloadPageState();
+
+    const handlePageShow = () => {
+      reloadPageState();
+    };
+
+    const handleFocus = () => {
+      reloadPageState();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        reloadPageState();
+      }
+    };
+
+    window.addEventListener("pageshow", handlePageShow);
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("pageshow", handlePageShow);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [mounted]);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchQuery(value);
 
-    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
 
     if (!value.trim()) {
       setIsSearching(false);
       setSearchResults([]);
+      setSearchLoading(false);
       return;
     }
 
@@ -148,9 +252,16 @@ export default function Dashboard() {
     debounceTimer.current = setTimeout(async () => {
       try {
         const res = await fetch(
-          `${PRODUCT_API_BASE}/products?search=${encodeURIComponent(value.trim())}`
+          `${PRODUCT_API_BASE}/products?search=${encodeURIComponent(
+            value.trim()
+          )}`,
+          {
+            cache: "no-store",
+          }
         );
+
         const json = await res.json();
+
         if (json.success) {
           const raw = json.data?.data || json.data || [];
           setSearchResults(raw.map(normalizeProduct));
@@ -167,13 +278,15 @@ export default function Dashboard() {
 
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && searchQuery.trim()) {
-      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+      }
+
       router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
     }
+
     if (e.key === "Escape") {
-      setIsSearching(false);
-      setSearchQuery("");
-      setSearchResults([]);
+      clearSearch();
     }
   };
 
@@ -181,12 +294,8 @@ export default function Dashboard() {
     setIsSearching(false);
     setSearchQuery("");
     setSearchResults([]);
+    setSearchLoading(false);
   };
-
-  const recommendedProducts = [...products]
-    .sort(() => 0.5 - Math.random())
-    .slice(0, 8);
-  const homepageCategories = categories.slice(0, 8);
 
   const handleToggleFavorite = async (
     e: React.MouseEvent,
@@ -195,29 +304,37 @@ export default function Dashboard() {
     e.preventDefault();
     e.stopPropagation();
 
+    const token =
+      localStorage.getItem("token") || localStorage.getItem("auth_token");
+
+    if (!token) {
+      alert("Silakan login terlebih dahulu untuk menambahkan ke favorit");
+      return;
+    }
+
     if (
       typeof productId === "string" &&
       (productId.startsWith("p") || productId.startsWith("r"))
     ) {
       setFavorites((prev) => {
         const next = new Set(prev);
-        if (next.has(productId)) next.delete(productId);
-        else next.add(productId);
+
+        if (next.has(productId)) {
+          next.delete(productId);
+        } else {
+          next.add(productId);
+        }
+
         localStorage.setItem("mock_favorites", JSON.stringify([...next]));
         return next;
       });
-      return;
-    }
 
-    const token = localStorage.getItem("token");
-    if (!token) {
-      alert("Silakan login terlebih dahulu untuk menambahkan ke favorit");
       return;
     }
 
     try {
       const res = await fetch(
-        `http://127.0.0.1:8000/api/v1/products/${productId}/favorite`,
+        `${PRODUCT_API_BASE}/products/${productId}/favorite`,
         {
           method: "POST",
           headers: {
@@ -226,12 +343,20 @@ export default function Dashboard() {
           },
         }
       );
+
       const json = await res.json();
+
       if (json.success) {
         setFavorites((prev) => {
           const next = new Set(prev);
-          if (json.is_favorite) next.add(productId.toString());
-          else next.delete(productId.toString());
+
+          if (json.is_favorite) {
+            next.add(productId.toString());
+          } else {
+            next.delete(productId.toString());
+          }
+
+          localStorage.setItem("mock_favorites", JSON.stringify([...next]));
           return next;
         });
       }
@@ -240,11 +365,49 @@ export default function Dashboard() {
     }
   };
 
+  const handleMoveToSeller = () => {
+    const token =
+      localStorage.getItem("token") || localStorage.getItem("auth_token");
+
+    const userStr = localStorage.getItem("current_user");
+
+    if (!token || !userStr) {
+      window.location.href = "http://localhost:3000/login";
+      return;
+    }
+
+    const sellerWindow = window.open(
+      "http://localhost:5173/auth/receiver",
+      "_blank"
+    );
+
+    if (!sellerWindow) {
+      alert(
+        "Popup diblokir browser. Izinkan popup atau buka seller dashboard manual."
+      );
+      return;
+    }
+
+    const sendAuth = () => {
+      sellerWindow.postMessage(
+        {
+          token,
+          user: userStr,
+        },
+        "http://localhost:5173"
+      );
+    };
+
+    setTimeout(sendAuth, 300);
+    setTimeout(sendAuth, 800);
+    setTimeout(sendAuth, 1500);
+  };
+
   const ProductCard = ({
     p,
     showPromoBadge = false,
   }: {
-    p: any;
+    p: ProductCardItem;
     showPromoBadge?: boolean;
   }) => (
     <Link
@@ -253,18 +416,20 @@ export default function Dashboard() {
       className="group rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col"
     >
       <div className="relative aspect-[4/3] w-full bg-gray-100 overflow-hidden">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={p.image}
           alt={p.title}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
+
         {showPromoBadge && (
           <div className="absolute top-3 left-3 bg-orange-500 text-white text-[11px] font-bold px-2.5 py-1 rounded-lg shadow-md z-10 tracking-wide">
             Promoted
           </div>
         )}
+
         <button
+          type="button"
           onClick={(e) => handleToggleFavorite(e, p.id)}
           className="absolute top-3 right-3 p-2 bg-white rounded-full shadow-md transition-transform hover:scale-110 z-10"
         >
@@ -275,15 +440,18 @@ export default function Dashboard() {
           )}
         </button>
       </div>
+
       <div className="p-4 flex flex-col flex-grow justify-between">
         <div>
           <h3 className="text-sm font-medium text-gray-900 line-clamp-2 leading-snug group-hover:text-blue-600 transition-colors">
             {p.title}
           </h3>
+
           <p className="text-lg font-bold text-blue-600 mt-2">
             Rp {p.price.toLocaleString("id-ID")}
           </p>
         </div>
+
         <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50">
           <div className="flex items-center text-xs text-gray-500">
             <svg
@@ -307,6 +475,7 @@ export default function Dashboard() {
             </svg>
             {p.location}
           </div>
+
           <div className="flex items-center text-xs font-semibold text-gray-700">
             <StarIcon className="w-3.5 h-3.5 text-yellow-400 mr-1" />
             {p.rating}
@@ -316,33 +485,48 @@ export default function Dashboard() {
     </Link>
   );
 
+  if (!mounted) {
+    return null;
+  }
+
   return (
     <div className="flex min-h-screen w-full bg-white font-sans">
       <div className="w-64 bg-white border-r p-4 hidden md:flex flex-col justify-between fixed h-screen z-10">
         <div>
-          <h1 className="text-2xl font-bold text-blue-500 tracking-wide">RatheR</h1>
+          <h1 className="text-2xl font-bold text-blue-500 tracking-wide">
+            RatheR
+          </h1>
+
           <nav className="mt-8 space-y-2">
             {[
               { name: "Beranda", href: "/" },
               { name: "Notifikasi", href: "/notifications" },
               { name: "Favorit", href: "/favorites" },
               { name: "Pembelian", href: "/purchases" },
-              { name: "Pindah ke seller", href: "/seller" },
             ].map((item) => (
               <Link
                 key={item.name}
                 href={item.href}
-                className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium transition-colors
-                  ${pathname === item.href
+                className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                  pathname === item.href
                     ? "bg-blue-50 text-blue-600"
                     : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                  }`}
+                }`}
               >
                 <span>{item.name}</span>
               </Link>
             ))}
+
+            <button
+              type="button"
+              onClick={handleMoveToSeller}
+              className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium transition-colors text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+            >
+              <span>Pindah ke seller</span>
+            </button>
           </nav>
         </div>
+
         <SidebarProfile user={currentUser} />
       </div>
 
@@ -364,6 +548,7 @@ export default function Dashboard() {
                 />
               </svg>
             </div>
+
             <input
               type="text"
               value={searchQuery}
@@ -372,12 +557,19 @@ export default function Dashboard() {
               placeholder="Cari barang bekas..."
               className="w-full pl-11 pr-10 py-3.5 rounded-2xl border border-gray-200 bg-gray-50 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-all shadow-sm"
             />
+
             {searchQuery && (
               <button
+                type="button"
                 onClick={clearSearch}
                 className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600"
               >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -398,7 +590,9 @@ export default function Dashboard() {
                   ? "Mencari..."
                   : `Hasil pencarian untuk "${searchQuery}" (${searchResults.length} produk)`}
               </h2>
+
               <button
+                type="button"
                 onClick={clearSearch}
                 className="text-sm font-medium text-blue-600 hover:underline"
               >
@@ -413,7 +607,9 @@ export default function Dashboard() {
             ) : searchResults.length === 0 ? (
               <div className="text-center py-20 bg-gray-50 rounded-3xl border border-gray-100">
                 <div className="text-5xl mb-4">🔍</div>
-                <h3 className="text-lg font-bold text-gray-900">Produk tidak ditemukan</h3>
+                <h3 className="text-lg font-bold text-gray-900">
+                  Produk tidak ditemukan
+                </h3>
                 <p className="text-gray-500 text-sm mt-2">
                   Coba kata kunci lain atau periksa ejaan Anda
                 </p>
@@ -431,6 +627,7 @@ export default function Dashboard() {
             <section>
               <div className="flex justify-between items-end mb-4">
                 <h2 className="text-lg font-bold text-gray-900">Kategori</h2>
+
                 <Link
                   href="/Kategori"
                   className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline"
@@ -471,20 +668,36 @@ export default function Dashboard() {
                 </div>
               )}
             </section>
-            <section>
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Rekomendasi Untukmu</h2>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                {!recommendedProducts || recommendedProducts.length === 0 ? (
-                  <div className="col-span-full rounded-2xl border border-gray-100 bg-gray-50 px-6 py-10 text-center">
-                    <h1 className="text-base font-semibold text-gray-700">
-                      Saat ini belum ada rekomendasi untukmu
-                    </h1>
-                  </div>
-                ) : (
-                  recommendedProducts.map((r) => <ProductCard key={r.id} p={r} />)
-                )}
-              </div>
+            <section>
+              <h2 className="text-lg font-bold text-gray-900 mb-4">
+                Rekomendasi Untukmu
+              </h2>
+
+              {productsLoading ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                  {Array.from({ length: 4 }).map((_, index) => (
+                    <div
+                      key={index}
+                      className="rounded-2xl border border-gray-100 bg-gray-50 h-72 animate-pulse"
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                  {recommendedProducts.length === 0 ? (
+                    <div className="col-span-full rounded-2xl border border-gray-100 bg-gray-50 px-6 py-10 text-center">
+                      <h1 className="text-base font-semibold text-gray-700">
+                        Saat ini belum ada rekomendasi untukmu
+                      </h1>
+                    </div>
+                  ) : (
+                    recommendedProducts.map((product) => (
+                      <ProductCard key={product.id} p={product} />
+                    ))
+                  )}
+                </div>
+              )}
             </section>
           </div>
         )}
