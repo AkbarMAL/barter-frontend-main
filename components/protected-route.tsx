@@ -15,39 +15,55 @@ interface ProtectedRouteProps {
  * Redirects to login if not authenticated
  * Redirects to home if don't have required role
  */
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  if (pathname.startsWith("/seller")) {
+    return NextResponse.redirect("http://localhost:5173/");
+  }
+
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: ["/seller/:path*"],
+};
 export function ProtectedRoute({
   children,
   requiredRole = "buyer",
   fallback,
 }: ProtectedRouteProps) {
   const router = useRouter();
-  const [isAuthorized, setIsAuthorized] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
 
   useEffect(() => {
-    const checkAuth = () => {
-      if (!isAuthenticated()) {
-        router.push("/login");
-        return;
-      }
+    if (!isAuthenticated()) {
+      setIsAuthorized(false);
+      router.replace("/login");
+      return;
+    }
 
-      if (requiredRole === "seller" && !isSeller()) {
-        router.push("/");
-        return;
-      }
+    if (requiredRole === "seller" && !isSeller()) {
+      setIsAuthorized(false);
+      router.replace("/");
+      return;
+    }
 
-      setIsAuthorized(true);
-      setIsLoading(false);
-    };
-
-    checkAuth();
+    setIsAuthorized(true);
   }, [router, requiredRole]);
 
-  if (isLoading) {
-    return fallback || <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  if (isAuthorized === null) {
+    return fallback || (
+      <div className="flex items-center justify-center min-h-screen">
+        Loading...
+      </div>
+    );
   }
 
-  if (!isAuthorized) {
+  if (isAuthorized === false) {
     return null;
   }
 
