@@ -517,12 +517,31 @@ export default function Dashboard() {
               </Link>
             ))}
 
+            {/* Tombol khusus buka seller React app di port 5173 + kirim token otomatis */}
             <button
-              type="button"
-              onClick={handleMoveToSeller}
-              className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium transition-colors text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+              onClick={() => {
+                const token = localStorage.getItem("token");
+                const user = localStorage.getItem("current_user");
+                if (!token) {
+                  alert("Silakan login terlebih dahulu.");
+                  return;
+                }
+                const sellerWindow = window.open("http://localhost:5173/auth/receiver", "_blank");
+                if (!sellerWindow) {
+                  alert("Popup diblokir browser. Izinkan popup untuk localhost:3000 lalu coba lagi.");
+                  return;
+                }
+                // Beri waktu halaman receiver load, lalu kirim token via postMessage
+                setTimeout(() => {
+                  sellerWindow.postMessage(
+                    { type: "AUTH_TOKEN", token, user },
+                    "http://localhost:5173"
+                  );
+                }, 1500);
+              }}
+              className="w-full flex items-center px-4 py-2.5 rounded-xl text-sm font-medium transition-colors text-gray-600 hover:bg-gray-50 hover:text-gray-900"
             >
-              <span>Pindah ke seller</span>
+              <span>Pindah ke Seller App</span>
             </button>
           </nav>
         </div>
@@ -535,7 +554,7 @@ export default function Dashboard() {
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
               <svg
-                className="h-5 w-5 text-gray-400"
+                className="h-5 w-5 text-gray-900"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
